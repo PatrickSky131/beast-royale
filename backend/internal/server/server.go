@@ -32,6 +32,25 @@ func New() *Server {
 
 // setupRoutes 设置路由
 func setupRoutes(router *gin.Engine, rpcHandler *handlers.RPCHandler) {
+	// 根路径 - API信息页面
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"name":        "Beast Royale Backend API",
+			"version":     "1.0.0",
+			"description": "Beast Royale游戏后端服务",
+			"status":      "running",
+			"endpoints": gin.H{
+				"health": "/health",
+				"rpc":    "/rpc",
+				"wallet": gin.H{
+					"connect": "/api/v1/wallet/connect",
+					"verify":  "/api/v1/wallet/verify",
+				},
+			},
+			"documentation": "请查看README.md了解详细API使用方法",
+		})
+	})
+
 	// 健康检查（保持兼容性）
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{

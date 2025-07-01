@@ -1,0 +1,22 @@
+Running in development mode...
+INFO: 2025/07/01 17:43:41 logger.go:51: No .env file found, using system environment variables
+2025/07/01 17:43:41 Database initialized successfully
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /                         --> beast-royale-backend/internal/server.setupRoutes.func1 (4 handlers)
+[GIN-debug] GET    /health                   --> beast-royale-backend/internal/server.setupRoutes.func2 (4 handlers)
+[GIN-debug] POST   /rpc                      --> beast-royale-backend/handlers.(*RPCHandler).HandleRPC-fm (4 handlers)
+[GIN-debug] POST   /api/v1/wallet/connect    --> beast-royale-backend/internal/server.setupRoutes.func3 (4 handlers)
+[GIN-debug] POST   /api/v1/wallet/verify     --> beast-royale-backend/internal/server.setupRoutes.func4 (4 handlers)
+INFO: 2025/07/01 17:43:41 logger.go:51: Server starting on port 8080
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8080
+[GIN-debug] [ERROR] listen tcp :8080: bind: address already in use
+ERROR: 2025/07/01 17:43:41 logger.go:58: Failed to start server: listen tcp :8080: bind: address already in use
+exit status 1
+make: *** [dev] Error 1
