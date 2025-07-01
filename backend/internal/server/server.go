@@ -64,49 +64,13 @@ func setupRoutes(router *gin.Engine, rpcHandler *handlers.RPCHandler) {
 
 	// 兼容性端点（保持向后兼容）
 	router.POST("/api/v1/wallet/connect", func(c *gin.Context) {
-		// 转换为RPC格式
-		var req struct {
-			Address string `json:"address"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, gin.H{"success": false, "message": "Invalid request"})
-			return
-		}
-
-		// 创建RPC请求
-		rpcReq := handlers.RPCRequest{
-			Method: "wallet.connect",
-			Params: req,
-			ID:     1,
-		}
-		c.Set("rpc_request", rpcReq)
-
-		// 调用钱包处理器
+		// 直接调用钱包处理器
 		walletHandler := handlers.NewWalletHandler()
 		walletHandler.Connect(c)
 	})
 
 	router.POST("/api/v1/wallet/verify", func(c *gin.Context) {
-		// 转换为RPC格式
-		var req struct {
-			Address   string `json:"address"`
-			Signature string `json:"signature"`
-			Message   string `json:"message"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(400, gin.H{"success": false, "message": "Invalid request"})
-			return
-		}
-
-		// 创建RPC请求
-		rpcReq := handlers.RPCRequest{
-			Method: "wallet.verify",
-			Params: req,
-			ID:     1,
-		}
-		c.Set("rpc_request", rpcReq)
-
-		// 调用钱包处理器
+		// 直接调用钱包处理器
 		walletHandler := handlers.NewWalletHandler()
 		walletHandler.Verify(c)
 	})

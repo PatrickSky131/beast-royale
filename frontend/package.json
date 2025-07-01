@@ -9,13 +9,14 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
   },
   "dependencies": {
-    "@walletconnect/modal": "^2.7.0",
-    "@walletconnect/web3-provider": "^1.8.0",
+    "@web3modal/ethereum": "^2.7.1",
     "axios": "^1.6.2",
     "ethers": "^6.8.1",
     "pinia": "^2.1.7",
+    "viem": "^2.31.6",
     "vue": "^3.3.8",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "wagmi": "^2.15.6"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.0",

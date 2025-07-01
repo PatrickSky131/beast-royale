@@ -5,74 +5,6 @@
       <p>连接您的MetaMask钱包开始游戏</p>
     </div>
 
-    <!-- 移动设备提示 -->
-    <div v-if="walletStore.isMobile" class="mobile-notice">
-      <div class="notice-card">
-        <div class="notice-icon">📱</div>
-        <h3>移动设备连接</h3>
-        
-        <!-- 连接状态检测 -->
-        <div class="connection-status">
-          <div v-if="connectionAdvice.type === 'metamask_browser'" class="status-success">
-            <span class="status-icon">✅</span>
-            <span>MetaMask 内置浏览器</span>
-          </div>
-          <div v-else class="status-info">
-            <span class="status-icon">📱</span>
-            <span>外部浏览器</span>
-          </div>
-        </div>
-        
-        <p>{{ connectionAdvice.message }}</p>
-        
-        <!-- 移动端特殊按钮 -->
-        <div class="mobile-actions">
-          <button 
-            v-if="connectionAdvice.type === 'metamask_browser'"
-            class="btn mobile-btn primary" 
-            @click="connectWallet"
-          >
-            🔗 直接连接 MetaMask
-          </button>
-          
-          <button class="btn mobile-btn" @click="openMetaMask">
-            🔗 在 MetaMask 中打开
-          </button>
-          
-          <button class="btn mobile-btn" @click="checkConnection">
-            🔍 检查连接状态
-          </button>
-          
-          <button 
-            class="btn mobile-btn" 
-            @click="manualSign"
-            :disabled="!walletStore.address"
-          >
-            ✍️ 手动签名
-          </button>
-        </div>
-        
-        <!-- 移动端说明 -->
-        <div class="mobile-info">
-          <h4>连接方式说明：</h4>
-          <div class="connection-methods">
-            <div class="method">
-              <h5>方式一：MetaMask 内置浏览器（推荐）</h5>
-              <p>在 MetaMask 应用中打开此页面，可以直接连接和签名</p>
-            </div>
-            <div class="method">
-              <h5>方式二：外部浏览器 + 手动连接</h5>
-              <p>在普通浏览器中打开，使用手动连接功能输入地址</p>
-            </div>
-            <div class="method">
-              <h5>方式三：WalletConnect（高级）</h5>
-              <p>使用 WalletConnect 协议连接，需要额外配置</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="wallet-section">
       <div v-if="!walletStore.isConnected" class="connect-wallet">
         <div class="wallet-card">
@@ -126,6 +58,73 @@
       </div>
     </div>
 
+    <!-- 移动设备提示 - 只在非MetaMask内置浏览器的移动设备中显示 -->
+    <div v-if="walletStore.isMobile && connectionAdvice.type !== 'metamask_browser'" class="mobile-notice">
+      <div class="notice-card">
+        <div class="notice-icon">📱</div>
+        <h3>移动设备连接</h3>
+        
+        <!-- 连接状态检测 -->
+        <div class="connection-status">
+          <div class="status-info">
+            <span class="status-icon">📱</span>
+            <span>外部浏览器</span>
+          </div>
+        </div>
+        
+        <p>{{ connectionAdvice.message }}</p>
+        
+        <!-- 移动端特殊按钮 -->
+        <div class="mobile-actions">
+          <button class="btn mobile-btn primary" @click="openInMetaMask">
+            🦊 在 MetaMask 中打开
+          </button>
+          
+          <button class="btn mobile-btn" @click="tryConnectDirect">
+            🔗 尝试直接连接
+          </button>
+          
+          <button class="btn mobile-btn" @click="checkConnection">
+            🔍 检查连接状态
+          </button>
+          
+          <button 
+            class="btn mobile-btn" 
+            @click="manualSign"
+            :disabled="!walletStore.address"
+          >
+            ✍️ 手动签名
+          </button>
+          
+          <div class="mobile-help">
+            <p><strong>💡 连接说明：</strong></p>
+            <p>• 如果您已安装MetaMask应用，点击"在MetaMask中打开"</p>
+            <p>• 在外部浏览器中，钱包无法直接检测到</p>
+            <p>• 建议使用MetaMask内置浏览器获得最佳体验</p>
+          </div>
+        </div>
+        
+        <!-- 移动端说明 -->
+        <div class="mobile-info">
+          <h4>连接方式说明：</h4>
+          <div class="connection-methods">
+            <div class="method">
+              <h5>方式一：MetaMask 内置浏览器（推荐）</h5>
+              <p>在 MetaMask 应用中打开此页面，可以直接连接和签名</p>
+            </div>
+            <div class="method">
+              <h5>方式二：外部浏览器 + 手动连接</h5>
+              <p>在普通浏览器中打开，使用手动连接功能输入地址</p>
+            </div>
+            <div class="method">
+              <h5>方式三：WalletConnect（高级）</h5>
+              <p>使用 WalletConnect 协议连接，需要额外配置</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="walletStore.token" class="game-content">
       <div class="game-card">
         <h3>游戏功能</h3>
@@ -164,7 +163,7 @@ export default {
       console.log('window.ethereum类型:', typeof window.ethereum)
       console.log('window.ethereum.isMetaMask:', window.ethereum?.isMetaMask)
       console.log('是否为移动设备:', walletStore.isMobile)
-      console.log('是否在MetaMask浏览器中:', walletStore.isInMetaMaskBrowser())
+      console.log('是否在MetaMask浏览器中:', walletStore.isInMetaMaskBrowser)
       
       // 检查MetaMask是否已连接
       if (window.ethereum) {
@@ -189,9 +188,13 @@ export default {
     }
 
     const startGame = () => {
-      if (walletStore.isConnected) {
+      // 确保只有完成签名验证后才能开始游戏
+      if (walletStore.isConnected && walletStore.token) {
         // 跳转到游戏主页面
         router.push('/game-main')
+      } else if (walletStore.isAddressObtained && !walletStore.isConnected) {
+        // 如果已获取地址但未完成签名验证，提示用户完成签名
+        alert('请先完成签名验证后再开始游戏')
       } else {
         alert('请先连接钱包后再开始游戏')
       }
@@ -207,13 +210,57 @@ export default {
     }
 
     // 移动端方法
-    const openMetaMask = () => {
+    const openInMetaMask = () => {
       console.log('打开 MetaMask 应用...')
       const metamaskUrl = walletStore.buildMetaMaskUrl()
       if (metamaskUrl) {
         window.location.href = metamaskUrl
       } else {
         alert('无法生成 MetaMask 链接')
+      }
+    }
+
+    const tryConnectDirect = async () => {
+      console.log('尝试直接连接...')
+      
+      try {
+        // 检查是否有window.ethereum
+        if (typeof window.ethereum === 'undefined') {
+          alert(
+            '❌ 未检测到钱包\n\n' +
+            '这通常是因为：\n' +
+            '• 您在外部浏览器中（Safari、Chrome等）\n' +
+            '• MetaMask应用未安装\n\n' +
+            '解决方案：\n' +
+            '1. 在MetaMask应用中打开此页面\n' +
+            '2. 或点击"在MetaMask中打开"按钮'
+          )
+          return
+        }
+        
+        // 尝试连接
+        const result = await walletStore.connectWallet()
+        if (result) {
+          console.log('直接连接成功')
+        }
+      } catch (error) {
+        console.error('直接连接失败:', error)
+        
+        // 根据错误类型提供不同的指导
+        if (error.message.includes('User rejected')) {
+          alert('❌ 用户拒绝了连接请求\n\n请在钱包中点击"连接"来授权此网站')
+        } else if (error.message.includes('manual_connection_needed')) {
+          alert('💡 建议使用MetaMask应用打开此页面以获得最佳连接体验')
+        } else {
+          alert(
+            '❌ 连接失败\n\n' +
+            `错误信息：${error.message}\n\n` +
+            '建议：\n' +
+            '• 确保MetaMask应用已安装并登录\n' +
+            '• 尝试在MetaMask内置浏览器中打开此页面\n' +
+            '• 或使用"在MetaMask中打开"功能'
+          )
+        }
       }
     }
 
@@ -251,7 +298,8 @@ export default {
       disconnectWallet,
       startGame,
       getWalletTypeName,
-      openMetaMask,
+      openInMetaMask,
+      tryConnectDirect,
       checkConnection,
       manualSign,
       connectionAdvice
@@ -537,6 +585,31 @@ export default {
   border-radius: 10px;
   text-align: center;
   font-weight: 500;
+}
+
+.mobile-help {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f0f8ff;
+  border-radius: 8px;
+  border-left: 4px solid #2196F3;
+  text-align: left;
+}
+
+.mobile-help p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: #333;
+  line-height: 1.4;
+}
+
+.mobile-help p:first-child {
+  margin-top: 0;
+  color: #1976d2;
+}
+
+.mobile-help p:last-child {
+  margin-bottom: 0;
 }
 
 @media (max-width: 768px) {

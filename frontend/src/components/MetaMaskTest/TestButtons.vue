@@ -20,24 +20,6 @@
         <div v-if="results.connection" :class="['result-content', results.connection.type]" v-html="results.connection.message"></div>
       </div>
 
-      <!-- WalletConnect连接 - 只在移动设备外部浏览器中显示 -->
-      <div v-if="shouldShowWalletConnect" class="button-result-group">
-        <button @click="connectWalletConnect" :class="['test-btn', { active: activeButton === 'walletConnect' }]">
-          <span class="btn-icon">📱</span>
-          <span class="btn-text">WalletConnect连接</span>
-        </button>
-        <div v-if="results.walletConnect" :class="['result-content', results.walletConnect.type]" v-html="results.walletConnect.message"></div>
-      </div>
-
-      <!-- WalletConnect签名 -->
-      <div v-if="walletConnectConnected" class="button-result-group">
-        <button @click="signWithWalletConnect" :class="['test-btn', { active: activeButton === 'walletConnectSign' }]">
-          <span class="btn-icon">✍️</span>
-          <span class="btn-text">WalletConnect签名</span>
-        </button>
-        <div v-if="results.walletConnectSign" :class="['result-content', results.walletConnectSign.type]" v-html="results.walletConnectSign.message"></div>
-      </div>
-
       <!-- 账户信息 -->
       <div class="button-result-group">
         <button @click="getAccountInfo" :class="['test-btn', { active: activeButton === 'account' }]">
@@ -80,7 +62,8 @@
 <script>
 import { computed, ref } from 'vue'
 import axios from 'axios'
-import walletConnectService from '@/services/WalletConnectService'
+import web3Service from '@/services/Web3Service'
+import config from '@/config/index.js'
 
 export default {
   name: 'TestButtons',
@@ -100,9 +83,6 @@ export default {
   },
   emits: ['update:results', 'update:activeButton', 'update:currentAccount', 'log'],
   setup(props, { emit }) {
-    // WalletConnect连接状态
-    const walletConnectConnected = ref(false)
-
     // MetaMask深度链接URL
     const metamaskUrl = computed(() => {
       const baseUrl = 'https://metamask.app.link/dapp/'
@@ -122,70 +102,9 @@ export default {
       return isMobile && !isInMetaMaskBrowser.value
     })
 
-    // 判断是否应该显示WalletConnect按钮
-    const shouldShowWalletConnect = computed(() => {
-      return walletConnectService.isExternalBrowser()
-    })
-
     function showResult(key, message, type = 'info') {
       const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'
       emit('update:results', { ...props.results, [key]: { message, type } })
-    }
-
-    // WalletConnect连接
-    async function connectWalletConnect() {
-      emit('update:activeButton', 'walletConnect')
-      emit('log', '开始WalletConnect连接...', 'info')
-      
-      try {
-        const result = await walletConnectService.connect()
-        
-        if (result.isConnected) {
-          walletConnectConnected.value = true
-          emit('update:currentAccount', result.account)
-          emit('log', `WalletConnect连接成功: ${result.account}`, 'success')
-          showResult('walletConnect', 
-            `✅ WalletConnect连接成功！<br>
-            地址: ${result.account}<br>
-            网络ID: ${result.chainId}`, 
-            'success'
-          )
-        } else {
-          emit('log', 'WalletConnect连接失败', 'error')
-          showResult('walletConnect', '❌ WalletConnect连接失败', 'error')
-        }
-      } catch (error) {
-        emit('log', `WalletConnect连接失败: ${error.message}`, 'error')
-        showResult('walletConnect', `❌ WalletConnect连接失败: ${error.message}`, 'error')
-      }
-    }
-
-    // WalletConnect签名
-    async function signWithWalletConnect() {
-      emit('update:activeButton', 'walletConnectSign')
-      emit('log', '开始WalletConnect签名...', 'info')
-      
-      if (!walletConnectConnected.value) {
-        showResult('walletConnectSign', '❌ 请先连接WalletConnect', 'error')
-        return
-      }
-      
-      try {
-        const message = '连接Beast Royale游戏\n\n点击签名以验证您的身份。'
-        const signatureResult = await walletConnectService.signMessage(message)
-        
-        emit('log', `WalletConnect签名成功: ${signatureResult.signature}`, 'success')
-        showResult('walletConnectSign', 
-          `✅ WalletConnect签名成功！<br>
-          消息: ${message}<br>
-          签名: ${signatureResult.signature.slice(0, 20)}...<br>
-          地址: ${signatureResult.address}`, 
-          'success'
-        )
-      } catch (error) {
-        emit('log', `WalletConnect签名失败: ${error.message}`, 'error')
-        showResult('walletConnectSign', `❌ WalletConnect签名失败: ${error.message}`, 'error')
-      }
     }
 
     function checkBasic() {
@@ -193,39 +112,39 @@ export default {
       emit('log', '开始基础检查...', 'info')
       
       if (!window.ethereum) {
-        emit('log', 'MetaMask 未安装', 'error')
-        showResult('basic', '❌ MetaMask 未安装', 'error')
+        emit('log', '钱包 未安装', 'error')
+        showResult('basic', '❌ 钱包 未安装', 'error')
         return
       }
       
-      emit('log', 'MetaMask 已安装', 'success')
-      showResult('basic', '✅ MetaMask 已安装<br>', 'success')
+      emit('log', '钱包 已安装', 'success')
+      showResult('basic', '✅ 钱包 已安装<br>', 'success')
       emit('log', '请点击"测试连接"按钮来连接账户', 'info')
     }
     
     async function testConnection() {
       emit('update:activeButton', 'connection')
-      emit('log', '测试连接...', 'info')
+      emit('log', '开始测试连接...', 'info')
       
       if (!window.ethereum) {
-        emit('log', 'MetaMask 未安装', 'error')
-        showResult('connection', '❌ MetaMask 未安装', 'error')
+        showResult('connection', '❌ 钱包 未安装', 'error')
         return
       }
       
       try {
-        const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts'
-        })
+        // 使用新的Web3Service连接
+        const result = await web3Service.connect()
         
-        if (accounts.length > 0) {
-          emit('update:currentAccount', accounts[0])
-          emit('log', `连接成功: ${accounts[0]}`, 'success')
-          showResult('connection', `✅ 连接成功: ${accounts[0]}`, 'success')
-        } else {
-          emit('log', '没有找到账户', 'error')
-          showResult('connection', '❌ 没有找到账户', 'error')
-        }
+        emit('update:currentAccount', result.account)
+        emit('log', `连接成功: ${result.account}`, 'success')
+        
+        showResult('connection', 
+          `✅ 连接成功！<br>
+          地址: ${result.account}<br>
+          网络ID: ${result.chainId}<br>
+          钱包类型: ${result.walletType}`, 
+          'success'
+        )
       } catch (error) {
         emit('log', `连接失败: ${error.message}`, 'error')
         showResult('connection', `❌ 连接失败: ${error.message}`, 'error')
@@ -234,46 +153,26 @@ export default {
     
     async function getAccountInfo() {
       emit('update:activeButton', 'account')
-      if (!props.currentAccount) {
-        showResult('account', '❌ 请先连接账户', 'error')
+      emit('log', '获取账户信息...', 'info')
+      
+      if (!web3Service.isConnected) {
+        showResult('account', '❌ 请先连接钱包', 'error')
         return
       }
       
-      emit('log', '获取账户信息...', 'info')
-      
       try {
-        // 获取当前网络信息
-        const chainId = await window.ethereum.request({
-          method: 'eth_chainId'
-        })
+        const status = web3Service.getConnectionStatus()
+        const balance = await web3Service.getBalance()
         
-        // 获取余额
-        const balance = await window.ethereum.request({
-          method: 'eth_getBalance',
-          params: [props.currentAccount, 'latest']
-        })
-        
-        // 简化余额显示，不显示代币符号
-        const balanceWei = BigInt(balance)
-        const balanceEth = balanceWei / BigInt(10 ** 18)
-        const balanceRemainder = balanceWei % BigInt(10 ** 18)
-        
-        let balanceFormatted
-        if (balanceRemainder === 0n) {
-          balanceFormatted = balanceEth.toString()
-        } else {
-          const remainderStr = balanceRemainder.toString().padStart(18, '0')
-          const trimmedRemainder = remainderStr.replace(/0+$/, '')
-          balanceFormatted = `${balanceEth}.${trimmedRemainder}`
-        }
-        
-        emit('log', `账户信息获取成功: ${balanceFormatted}`, 'success')
+        emit('log', `账户信息: ${status.account}, 余额: ${balance} ETH`, 'success')
         
         showResult('account', 
           `✅ 账户信息:<br>
-          地址: ${props.currentAccount}<br>
-          网络ID: ${chainId}<br>
-          余额: ${balanceFormatted}`, 
+          地址: ${status.account}<br>
+          余额: ${balance} ETH<br>
+          网络ID: ${status.chainId}<br>
+          钱包类型: ${status.walletType}<br>
+          是否移动设备: ${status.isMobile ? '是' : '否'}`, 
           'success'
         )
       } catch (error) {
@@ -286,25 +185,20 @@ export default {
       emit('update:activeButton', 'network')
       emit('log', '获取网络信息...', 'info')
       
-      if (!window.ethereum) {
-        showResult('network', '❌ MetaMask 未安装', 'error')
+      if (!web3Service.isConnected) {
+        showResult('network', '❌ 请先连接钱包', 'error')
         return
       }
       
       try {
-        const chainId = await window.ethereum.request({
-          method: 'eth_chainId'
-        })
+        const network = await web3Service.getNetwork()
         
-        // 简化网络名称显示
-        const networkName = getSimpleNetworkName(chainId)
-        
-        emit('log', `网络信息: ${chainId} - ${networkName}`, 'success')
+        emit('log', `网络信息: ${network.chainId} - ${network.name}`, 'success')
         
         showResult('network', 
           `✅ 网络信息:<br>
-          网络ID: ${chainId}<br>
-          网络名称: ${networkName}`, 
+          网络ID: ${network.chainId}<br>
+          网络名称: ${network.name}`, 
           'success'
         )
       } catch (error) {
@@ -313,107 +207,72 @@ export default {
       }
     }
     
-    function getSimpleNetworkName(chainId) {
-      const networks = {
-        '0x1': 'Ethereum Mainnet',
-        '0x5': 'Goerli Testnet',
-        '0x89': 'Polygon Mainnet',
-        '0x13881': 'Mumbai Testnet',
-        '0x38': 'BSC Mainnet',
-        '0x61': 'BSC Testnet',
-        '0xa': 'Optimism',
-        '0xa4b1': 'Arbitrum One',
-        '0x2105': 'Base',
-        '0x14a33': 'Base Goerli',
-        '0xaa36a7': 'Sepolia'
-      }
-      return networks[chainId] || `自定义网络 (${chainId})`
-    }
-    
     async function testFullFlow() {
       emit('update:activeButton', 'fullFlow')
-      emit('log', '开始跳转签名测试...', 'info')
+      emit('log', '开始完整流程测试...', 'info')
       
-      if (!window.ethereum) {
-        showResult('fullFlow', '❌ MetaMask 未安装', 'error')
+      if (!web3Service.isConnected) {
+        showResult('fullFlow', '❌ 请先连接钱包', 'error')
         return
       }
       
       try {
-        // 1. 连接钱包
-        emit('log', '步骤1: 连接钱包...', 'info')
-        const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts'
+        const status = web3Service.getConnectionStatus()
+        const address = status.account
+        
+        // 使用配置文件获取API地址
+        const apiBase = config.getApiBase()
+        emit('log', `使用API地址: ${apiBase}`, 'info')
+        
+        // 1. 获取nonce
+        emit('log', '步骤1: 获取nonce...', 'info')
+        const nonceResponse = await axios.post(`/api/v1/wallet/connect`, {
+          address: address
         })
         
-        if (accounts.length === 0) {
-          showResult('fullFlow', '❌ 没有找到账户', 'error')
+        if (!nonceResponse.data.success) {
+          showResult('fullFlow', `❌ 获取nonce失败: ${nonceResponse.data.message}`, 'error')
           return
         }
         
-        const address = accounts[0]
-        emit('log', `钱包地址: ${address}`, 'success')
-        
-        // 2. 获取nonce
-        emit('log', '步骤2: 获取nonce...', 'info')
-        const nonceResponse = await axios.post('/rpc', {
-          method: 'wallet.connect',
-          params: {
-            address: address
-          },
-          id: 1
-        })
-        
-        if (!nonceResponse.data.result?.success) {
-          showResult('fullFlow', `❌ 获取nonce失败: ${nonceResponse.data.error?.message || nonceResponse.data.result?.message}`, 'error')
-          return
-        }
-        
-        const nonce = nonceResponse.data.result.nonce
+        const nonce = nonceResponse.data.nonce
         emit('log', `获取到nonce: ${nonce}`, 'success')
         
-        // 3. 创建签名消息
-        const message = `连接Beast Royale游戏\n\nNonce: ${nonce}\n\n点击签名以验证您的身份。`
+        // 2. 创建签名消息
+        const message = `连接Beast Royale游戏\n\n点击签名以验证您的身份。\n\nNonce: ${nonce}`
         emit('log', `签名消息: ${message}`, 'info')
         
-        // 4. 请求签名
-        emit('log', '步骤3: 请求签名...', 'info')
-        const signature = await window.ethereum.request({
-          method: 'personal_sign',
-          params: [message, address]
+        // 3. 请求签名
+        emit('log', '步骤2: 请求签名...', 'info')
+        const signatureResult = await web3Service.signMessage(message)
+        
+        emit('log', `获取到签名: ${signatureResult.signature}`, 'success')
+        
+        // 4. 验证签名
+        emit('log', '步骤3: 验证签名...', 'info')
+        const verifyResponse = await axios.post(`/api/v1/wallet/verify`, {
+          address: address,
+          signature: signatureResult.signature,
+          message: message
         })
         
-        emit('log', `获取到签名: ${signature}`, 'success')
-        
-        // 5. 验证签名
-        emit('log', '步骤4: 验证签名...', 'info')
-        const verifyResponse = await axios.post('/rpc', {
-          method: 'wallet.verify',
-          params: {
-            address: address,
-            signature: signature,
-            message: message
-          },
-          id: 1
-        })
-        
-        if (verifyResponse.data.result?.success) {
-          emit('log', `验证成功，token: ${verifyResponse.data.result.token}`, 'success')
+        if (verifyResponse.data.success) {
+          emit('log', `验证成功，token: ${verifyResponse.data.token}`, 'success')
           showResult('fullFlow', 
-            `✅ 跳转签名测试成功！<br>
+            `✅ 完整流程测试成功！<br>
             地址: ${address}<br>
             Nonce: ${nonce}<br>
-            签名: ${signature.slice(0, 20)}...<br>
-            Token: ${verifyResponse.data.result.token}`, 
+            签名: ${signatureResult.signature.slice(0, 20)}...<br>
+            Token: ${verifyResponse.data.token}`, 
             'success'
           )
         } else {
-          showResult('fullFlow', `❌ 验证失败: ${verifyResponse.data.error?.message || verifyResponse.data.result?.message}`, 'error')
+          showResult('fullFlow', `❌ 验证失败: ${verifyResponse.data.message}`, 'error')
         }
         
       } catch (error) {
-        emit('log', `跳转签名测试失败: ${error.message}`, 'error')
-        showResult('fullFlow', `❌ 跳转签名测试失败: ${error.message}`, 'error')
+        emit('log', `完整流程测试失败: ${error.message}`, 'error')
+        showResult('fullFlow', `❌ 完整流程测试失败: ${error.message}`, 'error')
       }
     }
 
@@ -455,15 +314,11 @@ export default {
     return {
       checkBasic,
       testConnection,
-      connectWalletConnect,
-      signWithWalletConnect,
       getAccountInfo,
       getNetworkInfo,
       testFullFlow,
       openMetaMask,
-      shouldShowOpenMetaMask,
-      shouldShowWalletConnect,
-      walletConnectConnected
+      shouldShowOpenMetaMask
     }
   }
 }
