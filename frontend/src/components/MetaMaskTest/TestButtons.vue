@@ -20,6 +20,24 @@
         <div v-if="results.connection" :class="['result-content', results.connection.type]" v-html="results.connection.message"></div>
       </div>
 
+      <!-- WalletConnect连接 - 只在移动设备外部浏览器中显示 -->
+      <div v-if="shouldShowWalletConnect" class="button-result-group">
+        <button @click="connectWalletConnect" :class="['test-btn', { active: activeButton === 'walletConnect' }]">
+          <span class="btn-icon">📱</span>
+          <span class="btn-text">WalletConnect连接</span>
+        </button>
+        <div v-if="results.walletConnect" :class="['result-content', results.walletConnect.type]" v-html="results.walletConnect.message"></div>
+      </div>
+
+      <!-- WalletConnect签名 -->
+      <div v-if="walletConnectConnected" class="button-result-group">
+        <button @click="signWithWalletConnect" :class="['test-btn', { active: activeButton === 'walletConnectSign' }]">
+          <span class="btn-icon">✍️</span>
+          <span class="btn-text">WalletConnect签名</span>
+        </button>
+        <div v-if="results.walletConnectSign" :class="['result-content', results.walletConnectSign.type]" v-html="results.walletConnectSign.message"></div>
+      </div>
+
       <!-- 账户信息 -->
       <div class="button-result-group">
         <button @click="getAccountInfo" :class="['test-btn', { active: activeButton === 'account' }]">
@@ -60,8 +78,9 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import axios from 'axios'
+import walletConnectService from '@/services/WalletConnectService'
 
 export default {
   name: 'TestButtons',
@@ -81,6 +100,9 @@ export default {
   },
   emits: ['update:results', 'update:activeButton', 'update:currentAccount', 'log'],
   setup(props, { emit }) {
+    // WalletConnect连接状态
+    const walletConnectConnected = ref(false)
+
     // MetaMask深度链接URL
     const metamaskUrl = computed(() => {
       const baseUrl = 'https://metamask.app.link/dapp/'
@@ -100,9 +122,70 @@ export default {
       return isMobile && !isInMetaMaskBrowser.value
     })
 
+    // 判断是否应该显示WalletConnect按钮
+    const shouldShowWalletConnect = computed(() => {
+      return walletConnectService.isExternalBrowser()
+    })
+
     function showResult(key, message, type = 'info') {
       const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'
       emit('update:results', { ...props.results, [key]: { message, type } })
+    }
+
+    // WalletConnect连接
+    async function connectWalletConnect() {
+      emit('update:activeButton', 'walletConnect')
+      emit('log', '开始WalletConnect连接...', 'info')
+      
+      try {
+        const result = await walletConnectService.connect()
+        
+        if (result.isConnected) {
+          walletConnectConnected.value = true
+          emit('update:currentAccount', result.account)
+          emit('log', `WalletConnect连接成功: ${result.account}`, 'success')
+          showResult('walletConnect', 
+            `✅ WalletConnect连接成功！<br>
+            地址: ${result.account}<br>
+            网络ID: ${result.chainId}`, 
+            'success'
+          )
+        } else {
+          emit('log', 'WalletConnect连接失败', 'error')
+          showResult('walletConnect', '❌ WalletConnect连接失败', 'error')
+        }
+      } catch (error) {
+        emit('log', `WalletConnect连接失败: ${error.message}`, 'error')
+        showResult('walletConnect', `❌ WalletConnect连接失败: ${error.message}`, 'error')
+      }
+    }
+
+    // WalletConnect签名
+    async function signWithWalletConnect() {
+      emit('update:activeButton', 'walletConnectSign')
+      emit('log', '开始WalletConnect签名...', 'info')
+      
+      if (!walletConnectConnected.value) {
+        showResult('walletConnectSign', '❌ 请先连接WalletConnect', 'error')
+        return
+      }
+      
+      try {
+        const message = '连接Beast Royale游戏\n\n点击签名以验证您的身份。'
+        const signatureResult = await walletConnectService.signMessage(message)
+        
+        emit('log', `WalletConnect签名成功: ${signatureResult.signature}`, 'success')
+        showResult('walletConnectSign', 
+          `✅ WalletConnect签名成功！<br>
+          消息: ${message}<br>
+          签名: ${signatureResult.signature.slice(0, 20)}...<br>
+          地址: ${signatureResult.address}`, 
+          'success'
+        )
+      } catch (error) {
+        emit('log', `WalletConnect签名失败: ${error.message}`, 'error')
+        showResult('walletConnectSign', `❌ WalletConnect签名失败: ${error.message}`, 'error')
+      }
     }
 
     function checkBasic() {
@@ -372,11 +455,15 @@ export default {
     return {
       checkBasic,
       testConnection,
+      connectWalletConnect,
+      signWithWalletConnect,
       getAccountInfo,
       getNetworkInfo,
       testFullFlow,
       openMetaMask,
-      shouldShowOpenMetaMask
+      shouldShowOpenMetaMask,
+      shouldShowWalletConnect,
+      walletConnectConnected
     }
   }
 }
