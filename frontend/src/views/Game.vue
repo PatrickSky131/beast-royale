@@ -88,8 +88,6 @@
           
           <div class="wallet-details">
             <p><strong>钱包地址:</strong> {{ walletStore.shortAddress }}</p>
-            <p><strong>钱包类型:</strong> {{ walletStore.getWalletTypeName() }}</p>
-            <p v-if="walletStore.chainId"><strong>网络ID:</strong> {{ walletStore.chainId }}</p>
           </div>
           
           <!-- 重新连接按钮 -->
@@ -105,10 +103,18 @@
             </button>
             
             <button 
+              v-if="walletStore.isConnected && walletStore.token"
+              class="btn btn-large start-game-btn" 
+              @click="startGame"
+            >
+              🚀 开始游戏
+            </button>
+            
+            <button 
               class="btn btn-secondary" 
               @click="disconnectWallet"
             >
-              🔌 断开连接
+              🚪 退出登录
             </button>
           </div>
         </div>
@@ -152,8 +158,8 @@
 
     <div v-if="walletStore.token" class="game-content">
       <div class="game-card">
-        <h3>游戏功能</h3>
-        <p>更多游戏功能正在开发中...</p>
+        <h3>🎮 游戏功能</h3>
+        <p>恭喜！您已成功连接钱包，可以开始游戏了。</p>
         <div class="game-features">
           <div class="feature">🎯 战斗系统</div>
           <div class="feature">🏆 排行榜</div>
@@ -720,5 +726,84 @@ export default {
 .btn:disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* 游戏内容区域 */
+.game-content {
+  margin-top: 30px;
+}
+
+.game-card {
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.game-card h3 {
+  color: #333;
+  font-size: 1.8rem;
+  margin-bottom: 15px;
+}
+
+.game-card p {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 25px;
+  line-height: 1.6;
+}
+
+.game-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.feature {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(102,126,234,0.3);
+}
+
+/* 开始游戏区域 */
+.game-start-section {
+  margin-bottom: 30px;
+  padding-bottom: 30px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.btn-large {
+  padding: 18px 50px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(255,107,107,0.3);
+}
+
+.btn-large:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(255,107,107,0.4);
+}
+
+.game-start-desc {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 15px;
+  opacity: 0.8;
 }
 </style> 

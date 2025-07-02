@@ -6,9 +6,13 @@
       
       <div class="hero-actions">
         <router-link to="/game" class="btn btn-primary">
-          开始游戏
+          登录
         </router-link>
-        <router-link to="/metamask-test" class="btn btn-secondary">
+        <router-link 
+          v-if="isDevMode" 
+          to="/metamask-test" 
+          class="btn btn-secondary"
+        >
           🦊 MetaMask 测试
         </router-link>
         <button class="btn btn-secondary" @click="learnMore">
@@ -41,19 +45,20 @@
         <h3>移动端支持</h3>
         <p>支持移动设备访问，随时随地享受游戏乐趣。</p>
       </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">🛠️</div>
-        <h3>开发工具</h3>
-        <p>提供完整的测试工具，帮助开发者调试和验证功能。</p>
-      </div>
     </div>
   </div>
 </template>
 
 <script>
+import config from '../config/index.js'
+
 export default {
   name: 'Home',
+  computed: {
+    isDevMode() {
+      return config.app.isDevMode
+    }
+  },
   methods: {
     learnMore() {
       alert('更多功能正在开发中...')

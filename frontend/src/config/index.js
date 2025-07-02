@@ -33,7 +33,7 @@ const config = {
     // 连接后是否自动进行签名验证
     // true: 连接成功后自动进行签名验证（一步完成）
     // false: 连接成功后需要用户手动点击"完成签名验证"按钮（两步完成）
-    autoSignAfterConnect: false
+    autoSignAfterConnect: true
   }
 }
 
