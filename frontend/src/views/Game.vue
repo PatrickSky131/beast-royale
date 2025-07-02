@@ -10,59 +10,73 @@
       
       <!-- 钱包选择 -->
       <div v-if="!walletStore.isConnected && !walletStore.isAddressObtained" class="wallet-options">
-        <h3>选择钱包类型</h3>
+        <h3>选择连接方式</h3>
         
-        <div class="wallet-buttons">
-          <!-- MetaMask连接 -->
-          <button 
-            class="btn wallet-btn primary" 
-            @click="connectWallet('metamask')"
-            :disabled="walletStore.isConnecting"
-            v-if="availableWallets.some(w => w.type === 'metamask')"
-          >
-            <span class="wallet-icon">🦊</span>
-            <span class="wallet-name">MetaMask</span>
-            <span class="wallet-desc">浏览器插件</span>
-          </button>
-          
-          <!-- WalletConnect连接 -->
-          <button 
-            class="btn wallet-btn" 
-            @click="connectWallet('walletconnect')"
-            :disabled="walletStore.isConnecting"
-          >
-            <span class="wallet-icon">🔗</span>
-            <span class="wallet-name">WalletConnect</span>
-            <span class="wallet-desc">扫码连接</span>
-          </button>
-          
-          <!-- 其他钱包 -->
-          <button 
-            v-for="wallet in availableWallets.filter(w => !['metamask', 'walletconnect'].includes(w.type))"
-            :key="wallet.type"
-            class="btn wallet-btn" 
-            @click="connectWallet(wallet.type)"
-            :disabled="walletStore.isConnecting"
-          >
-            <span class="wallet-icon">💼</span>
-            <span class="wallet-name">{{ wallet.name }}</span>
-            <span class="wallet-desc">{{ wallet.description || '其他钱包' }}</span>
-          </button>
+        <!-- 桌面端连接选项 -->
+        <div v-if="!walletStore.isMobileDevice" class="desktop-options">
+          <div class="wallet-buttons">
+            <!-- MetaMask连接 -->
+            <button 
+              class="btn wallet-btn primary" 
+              @click="connectWallet('metamask')"
+              :disabled="walletStore.isConnecting"
+            >
+              <span class="wallet-icon">🦊</span>
+              <span class="wallet-name">MetaMask</span>
+              <span class="wallet-desc">浏览器插件</span>
+            </button>
+            
+            <!-- WalletConnect连接 -->
+            <button 
+              class="btn wallet-btn" 
+              @click="connectWallet('walletconnect')"
+              :disabled="walletStore.isConnecting"
+            >
+              <span class="wallet-icon">🔗</span>
+              <span class="wallet-name">WalletConnect</span>
+              <span class="wallet-desc">扫码连接</span>
+            </button>
+          </div>
         </div>
         
-        <!-- 自动连接按钮 -->
-        <div class="auto-connect">
-          <button 
-            class="btn btn-large" 
-            @click="connectWallet()"
-            :disabled="walletStore.isConnecting"
-          >
-            <span v-if="walletStore.isConnecting">连接中...</span>
-            <span v-else>🚀 智能连接（推荐）</span>
-          </button>
-          <p class="auto-connect-desc">
-            系统将自动选择最适合您设备的连接方式
-          </p>
+        <!-- 移动端连接选项 -->
+        <div v-else class="mobile-options">
+          <div class="wallet-buttons">
+            <!-- MetaMask内置浏览器中的选项 -->
+            <template v-if="walletStore.isInMetaMaskBrowser">
+              <!-- MetaMask连接 -->
+              <button 
+                class="btn wallet-btn primary" 
+                @click="connectWallet('metamask')"
+                :disabled="walletStore.isConnecting"
+              >
+                <span class="wallet-icon">🦊</span>
+                <span class="wallet-name">MetaMask</span>
+                <span class="wallet-desc">直接连接</span>
+              </button>
+            </template>
+            
+            <!-- 外部浏览器中的选项 -->
+            <template v-else>
+              <!-- WalletConnect连接 -->
+              <button 
+                class="btn wallet-btn primary" 
+                @click="connectWallet('walletconnect')"
+                :disabled="walletStore.isConnecting"
+              >
+                <span class="wallet-icon">🔗</span>
+                <span class="wallet-name">WalletConnect连接</span>
+                <span class="wallet-desc">扫描二维码连接</span>
+              </button>
+              
+              <!-- 提示信息 -->
+              <div class="mobile-notice-card">
+                <div class="notice-icon">📱</div>
+                <h4>外部浏览器连接</h4>
+                <p>在外部浏览器中请使用WalletConnect连接。如需使用MetaMask，请在MetaMask内置浏览器中打开此页面。</p>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -89,7 +103,7 @@
             <button 
               v-if="!walletStore.isConnected" 
               class="btn" 
-              @click="connectWallet()"
+              @click="signMessageOnly"
               :disabled="walletStore.isConnecting"
             >
               <span v-if="walletStore.isConnecting">验证中...</span>
@@ -142,99 +156,6 @@
       </div>
     </div>
 
-    <!-- 移动设备提示 - 只在非MetaMask内置浏览器的移动设备中显示 -->
-    <div v-if="walletStore.isMobile && connectionAdvice.type !== 'metamask_browser'" class="mobile-notice">
-      <div class="notice-card">
-        <div class="notice-icon">📱</div>
-        <h3>移动设备连接</h3>
-        
-        <!-- 连接状态检测 -->
-        <div class="connection-status">
-          <div class="status-info">
-            <span class="status-icon">📱</span>
-            <span>{{ connectionAdvice.type === 'external_browser' ? '外部浏览器' : '移动设备' }}</span>
-          </div>
-        </div>
-        
-        <p>{{ connectionAdvice.message }}</p>
-        
-        <!-- 移动端特殊按钮 -->
-        <div class="mobile-actions">
-          <!-- WalletConnect连接 -->
-          <button 
-            v-if="connectionAdvice.hasWalletConnect"
-            class="btn mobile-btn primary" 
-            @click="connectWithWalletConnect"
-            :disabled="walletStore.isConnecting"
-          >
-            <span v-if="walletStore.isConnecting">连接中...</span>
-            <span v-else>🔗 WalletConnect连接</span>
-          </button>
-          
-          <!-- MetaMask深链接 -->
-          <button 
-            v-if="connectionAdvice.hasDeepLink"
-            class="btn mobile-btn" 
-            @click="connectWithMetaMaskDeepLink"
-            :disabled="walletStore.isConnecting"
-          >
-            🦊 MetaMask深链接
-          </button>
-          
-          <!-- 在MetaMask中打开 -->
-          <button class="btn mobile-btn" @click="openInMetaMask">
-            🦊 在 MetaMask 中打开
-          </button>
-          
-          <button class="btn mobile-btn" @click="tryConnectDirect">
-            🔗 尝试直接连接
-          </button>
-          
-          <button class="btn mobile-btn" @click="checkConnection">
-            🔍 检查连接状态
-          </button>
-          
-          <button 
-            class="btn mobile-btn" 
-            @click="manualSign"
-            :disabled="!walletStore.address"
-          >
-            ✍️ 手动签名
-          </button>
-          
-          <div class="mobile-help">
-            <p><strong>💡 连接说明：</strong></p>
-            <p v-if="connectionAdvice.recommendedWallet === 'walletconnect'">
-              • <strong>推荐</strong>：使用WalletConnect，通过扫描二维码连接
-            </p>
-            <p v-if="connectionAdvice.hasDeepLink">
-              • 或使用MetaMask深链接直接跳转到MetaMask应用
-            </p>
-            <p>• 或在MetaMask内置浏览器中打开此页面获得最佳体验</p>
-          </div>
-        </div>
-        
-        <!-- 移动端说明 -->
-        <div class="mobile-info">
-          <h4>连接方式说明：</h4>
-          <div class="connection-methods">
-            <div class="method">
-              <h5>方式一：MetaMask 内置浏览器（推荐）</h5>
-              <p>在 MetaMask 应用中打开此页面，可以直接连接和签名</p>
-            </div>
-            <div class="method">
-              <h5>方式二：外部浏览器 + 手动连接</h5>
-              <p>在普通浏览器中打开，使用手动连接功能输入地址</p>
-            </div>
-            <div class="method">
-              <h5>方式三：WalletConnect（高级）</h5>
-              <p>使用 WalletConnect 协议连接，需要额外配置</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div v-if="walletStore.token" class="game-content">
       <div class="game-card">
         <h3>游戏功能</h3>
@@ -264,18 +185,10 @@ export default {
     // 可用的钱包列表
     const availableWallets = ref([])
 
-    // 计算连接建议
-    const connectionAdvice = computed(() => {
-      return walletStore.getMobileConnectionAdvice()
-    })
-
     // 初始化时检测可用钱包
     onMounted(() => {
       availableWallets.value = walletStore.detectWallets()
       console.log('可用钱包:', availableWallets.value)
-      
-      // 设置页面可见性监听器，用于检测从MetaMask返回
-      walletStore.setupVisibilityListener()
       
       // 初始检查连接状态
       walletStore.manualCheckConnection()
@@ -316,47 +229,6 @@ export default {
       return await connectWallet('walletconnect')
     }
 
-    // MetaMask深链接专用连接方法
-    const connectWithMetaMaskDeepLink = async () => {
-      console.log('使用MetaMask深链接连接钱包...')
-      
-      try {
-        // 显示详细的操作指引
-        const userConfirmed = confirm(
-          '🦊 MetaMask深链接连接流程：\n\n' +
-          '第一步：点击"确定"跳转到MetaMask应用\n' +
-          '第二步：在MetaMask中点击"连接"确认连接\n' +
-          '第三步：连接完成后手动返回此浏览器页面\n' +
-          '第四步：返回后会自动弹出签名请求\n\n' +
-          '💡 注意：需要完成两个步骤（连接+签名）\n\n' +
-          '点击"取消"使用WalletConnect一步完成'
-        )
-        
-        if (!userConfirmed) {
-          // 用户选择使用WalletConnect
-          return await connectWithWalletConnect()
-        }
-        
-        // 保存状态，标记正在进行深链接流程
-        localStorage.setItem('beast_royale_deeplink_pending', JSON.stringify({
-          timestamp: Date.now(),
-          step: 'connecting'
-        }))
-        
-        // 执行深链接连接
-        return await connectWallet('metamask_deeplink')
-        
-      } catch (error) {
-        if (error.message.includes('正在跳转')) {
-          // 正常的跳转流程，显示返回提示
-          walletStore.error = '已跳转到MetaMask应用。完成连接后请返回此页面完成签名验证。'
-        } else {
-          console.error('MetaMask深链接连接失败:', error)
-        }
-        return false
-      }
-    }
-
     const disconnectWallet = async () => {
       try {
         await walletStore.disconnect()
@@ -384,92 +256,27 @@ export default {
       walletStore.error = null
     }
 
-    // 移动端方法
-    const openInMetaMask = () => {
-      console.log('打开 MetaMask 应用...')
-      const metamaskUrl = walletStore.buildMetaMaskUrl()
-      if (metamaskUrl) {
-        window.location.href = metamaskUrl
-      } else {
-        alert('无法生成 MetaMask 链接')
-      }
-    }
-
-    const tryConnectDirect = async () => {
-      console.log('尝试直接连接...')
-      
+    // 专门进行签名验证
+    const signMessageOnly = async () => {
       try {
-        // 检查是否有window.ethereum
-        if (typeof window.ethereum === 'undefined') {
-          alert(
-            '❌ 未检测到钱包\n\n' +
-            '这通常是因为：\n' +
-            '• 您在外部浏览器中（Safari、Chrome等）\n' +
-            '• 钱包应用未安装或未激活\n\n' +
-            '解决方案：\n' +
-            '1. 使用WalletConnect连接（推荐）\n' +
-            '2. 在钱包应用内置浏览器中打开此页面\n' +
-            '3. 或点击"MetaMask深链接"按钮'
-          )
-          return
-        }
-        
-        // 尝试连接
-        const result = await connectWallet('metamask')
-        if (result) {
-          console.log('直接连接成功')
-        }
+        const result = await walletStore.signMessageOnly()
+        console.log('签名验证结果:', result)
+        return result
       } catch (error) {
-        console.error('直接连接失败:', error)
-        alert(`直接连接失败: ${error.message}\n\n建议尝试使用WalletConnect连接`)
-      }
-    }
-
-    const checkConnection = async () => {
-      console.log('检查连接状态...')
-      
-      try {
-        const result = await walletStore.manualCheckConnection()
-        if (result) {
-          console.log('检查连接成功')
-        } else {
-          console.log('未检测到连接')
-        }
-      } catch (error) {
-        console.error('检查连接失败:', error)
-      }
-    }
-
-    const manualSign = async () => {
-      if (!walletStore.address) {
-        alert('请先连接钱包获取地址')
-        return
-      }
-      
-      try {
-        const result = await walletStore.getNonceAndSign(walletStore.address)
-        if (result) {
-          console.log('手动签名成功')
-        }
-      } catch (error) {
-        console.error('手动签名失败:', error)
+        console.error('签名验证失败:', error)
+        return false
       }
     }
 
     return {
       walletStore,
       availableWallets,
-      connectionAdvice,
       connectWallet,
       connectWithWalletConnect,
-      connectWithMetaMaskDeepLink,
       disconnectWallet,
       startGame,
       clearError,
-      openInMetaMask,
-      tryConnectDirect,
-      checkConnection,
-      manualSign
+      signMessageOnly
     }
   }
 }
@@ -743,80 +550,32 @@ export default {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.notice-icon {
-  font-size: 3rem;
-  margin-bottom: 15px;
-}
-
-.notice-card h3 {
-  color: #333;
-  margin-bottom: 20px;
-}
-
-.connection-status {
-  background: #e7f3ff;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 20px;
-}
-
-.status-info {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-weight: 500;
-  color: #0066cc;
-}
-
-.mobile-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.mobile-btn {
-  padding: 12px 20px;
-  border: 1px solid #007bff;
-  border-radius: 8px;
-  background: white;
-  color: #007bff;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
-}
-
-.mobile-btn.primary {
-  background: #007bff;
-  color: white;
-}
-
-.mobile-btn:hover {
-  background: #007bff;
-  color: white;
-}
-
-.mobile-btn.primary:hover {
-  background: #0056b3;
-}
-
-.mobile-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.mobile-help {
+.mobile-notice-card {
   background: #f8f9fa;
-  border-radius: 8px;
-  padding: 15px;
-  text-align: left;
-  font-size: 0.9rem;
-  color: #495057;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  grid-column: 1 / -1;
+  margin-top: 15px;
 }
 
-.mobile-help p {
-  margin: 8px 0;
+.mobile-notice-card .notice-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.mobile-notice-card h4 {
+  color: #495057;
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+}
+
+.mobile-notice-card p {
+  color: #6c757d;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 /* 游戏开始区域 */

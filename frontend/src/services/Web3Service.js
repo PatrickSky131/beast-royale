@@ -17,32 +17,22 @@ class Web3Service {
     
     // 检测是否为移动设备
     const isMobile = this.isMobileDevice();
+    const isInMetaMaskBrowser = this.isInMetaMaskBrowser();
     
     if (isMobile) {
-      // 移动端：总是显示MetaMask选项，因为可以通过深链接唤起
-      wallets.push({
-        name: 'MetaMask',
-        type: 'metamask',
-        available: true,
-        isMobile: true,
-        isMetaMask: typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask,
-        hasProvider: typeof window.ethereum !== 'undefined',
-        inMetaMaskBrowser: this.isInMetaMaskBrowser()
-      });
-      
-      // 如果不在MetaMask浏览器中，提供深链接选项
-      if (!this.isInMetaMaskBrowser()) {
+      if (isInMetaMaskBrowser) {
+        // MetaMask内置浏览器：只显示MetaMask选项
         wallets.push({
-          name: 'MetaMask 深链接',
-          type: 'metamask_deeplink',
+          name: 'MetaMask',
+          type: 'metamask',
           available: true,
           isMobile: true,
-          description: '通过深链接在MetaMask应用中打开'
+          isMetaMask: typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask,
+          hasProvider: typeof window.ethereum !== 'undefined',
+          inMetaMaskBrowser: true
         });
-      }
-
-      // 外部浏览器中添加WalletConnect选项
-      if (walletConnectService.isExternalBrowser()) {
+      } else {
+        // 外部浏览器：只显示WalletConnect选项
         wallets.push({
           name: 'WalletConnect',
           type: 'walletconnect',
@@ -100,24 +90,30 @@ class Web3Service {
   async connect(walletType = 'auto') {
     try {
       const isMobile = this.isMobileDevice();
+      const isInMetaMaskBrowser = this.isInMetaMaskBrowser();
       
-      // 如果指定了WalletConnect或者在外部浏览器中自动选择WalletConnect
-      if (walletType === 'walletconnect' || (isMobile && walletConnectService.isExternalBrowser() && walletType === 'auto')) {
+      // 如果指定了WalletConnect
+      if (walletType === 'walletconnect') {
         return await this.connectViaWalletConnect();
       }
       
       // 移动端特殊处理
-      if (isMobile && !this.isInMetaMaskBrowser()) {
-        // 在外部浏览器中，优先尝试WalletConnect
-        if (walletType === 'auto') {
-          try {
-            return await this.connectViaWalletConnect();
-          } catch (wcError) {
-            console.log('WalletConnect连接失败，尝试深链接...', wcError);
-            return await this.connectViaMobileDeepLink();
+      if (isMobile) {
+        if (isInMetaMaskBrowser) {
+          // MetaMask内置浏览器，只支持MetaMask连接
+          if (typeof window.ethereum === 'undefined') {
+            throw new Error('MetaMask内置浏览器中未检测到ethereum对象');
           }
-        } else if (walletType === 'metamask_deeplink') {
-          return await this.connectViaMobileDeepLink();
+          // 继续执行标准MetaMask连接流程
+        } else {
+          // 外部浏览器，只支持WalletConnect
+          if (walletType === 'auto') {
+            return await this.connectViaWalletConnect();
+          } else if (walletType === 'metamask') {
+            throw new Error('外部浏览器中不支持MetaMask连接，请使用WalletConnect');
+          } else {
+            return await this.connectViaWalletConnect();
+          }
         }
       }
       
@@ -198,44 +194,6 @@ class Web3Service {
     } catch (error) {
       console.error('WalletConnect连接失败:', error);
       throw error;
-    }
-  }
-
-  // 移动端深链接连接
-  async connectViaMobileDeepLink() {
-    try {
-      // 保存当前状态到localStorage
-      const currentState = {
-        timestamp: Date.now(),
-        returnUrl: window.location.href
-      }
-      localStorage.setItem('beast_royale_deeplink_state', JSON.stringify(currentState))
-      
-      // 构建MetaMask深链接
-      const metamaskDeepLink = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}${window.location.search}`
-      
-      // 显示连接指引
-      const userConfirmed = confirm(
-        '要连接MetaMask钱包，请:\n\n' +
-        '1. 点击"确定"跳转到MetaMask应用\n' +
-        '2. 在MetaMask中授权连接\n' +
-        '3. 返回此页面会自动检测连接状态\n\n' +
-        '点击"取消"使用WalletConnect连接'
-      )
-      
-      if (userConfirmed) {
-        // 尝试打开MetaMask应用
-        window.location.href = metamaskDeepLink
-        
-        // 抛出特殊错误，告知用户正在跳转
-        throw new Error('正在跳转到MetaMask应用，请在应用中完成连接后返回此页面')
-      } else {
-        // 用户选择使用WalletConnect
-        return await this.connectViaWalletConnect()
-      }
-    } catch (error) {
-      console.error('移动端深链接连接失败:', error)
-      throw error
     }
   }
 
