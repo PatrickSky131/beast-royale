@@ -6,15 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Beast Royale - 游戏</title>
     
-    <!-- 添加vConsole调试工具 -->
+    <!-- 添加vConsole调试工具（在Vue应用中动态控制） -->
     <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
-    <script>
-      // 在移动端启用vConsole
-      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        var vConsole = new VConsole();
-        console.log('vConsole已启用，点击右下角按钮查看控制台');
-      }
-    </script>
   </head>
   <body>
     <div id="app"></div>

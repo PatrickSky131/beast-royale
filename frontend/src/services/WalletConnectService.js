@@ -1,5 +1,6 @@
 import { ethers } from 'ethers'
 import walletConnectConfig, { validateWalletConnectConfig } from '../config/walletconnect.js'
+import config from '../config/index.js'
 
 class WalletConnectService {
   constructor() {
@@ -120,7 +121,9 @@ class WalletConnectService {
       }
 
     } catch (error) {
-      console.error('WalletConnect连接失败:', error)
+      if (config.app.isDevMode) {
+        console.error('WalletConnect连接失败:', error)
+      }
       
       // 安全地检查错误消息
       let errorMessage = 'Unknown error'
@@ -131,7 +134,9 @@ class WalletConnectService {
           errorMessage = error
         }
       } catch (e) {
-        console.error('解析错误消息失败:', e)
+        if (config.app.isDevMode) {
+          console.error('解析错误消息失败:', e)
+        }
         errorMessage = 'Unknown error'
       }
       
@@ -152,34 +157,44 @@ class WalletConnectService {
 
   // 签名消息
   async signMessage(message) {
-    console.log('=== WalletConnect signMessage 开始 ===')
-    console.log('输入参数 message:', message)
-    console.log('this.provider:', this.provider)
-    console.log('this.account:', this.account)
+    if (config.app.isDevMode) {
+      console.log('=== WalletConnect signMessage 开始 ===')
+      console.log('输入参数 message:', message)
+      console.log('this.provider:', this.provider)
+      console.log('this.account:', this.account)
+    }
     
     try {
       if (!this.provider || !this.account) {
-        console.error('检查失败: provider或account不存在')
+        if (config.app.isDevMode) {
+          console.error('检查失败: provider或account不存在')
+        }
         throw new Error('请先连接WalletConnect')
       }
 
       // 检查provider的状态
-      console.log('检查provider状态...')
-      console.log('provider.connected:', this.provider.connected)
-      console.log('provider.chainId:', this.provider.chainId)
-      console.log('provider.accounts:', this.provider.accounts)
+      if (config.app.isDevMode) {
+        console.log('检查provider状态...')
+        console.log('provider.connected:', this.provider.connected)
+        console.log('provider.chainId:', this.provider.chainId)
+        console.log('provider.accounts:', this.provider.accounts)
+      }
       
       // 确保provider已连接
       if (!this.provider.connected) {
-        console.log('Provider未连接，尝试重新连接...')
+        if (config.app.isDevMode) {
+          console.log('Provider未连接，尝试重新连接...')
+        }
         await this.provider.enable()
       }
 
-      console.log('开始WalletConnect签名...')
-      console.log('准备调用 provider.request，参数:', {
-        method: 'personal_sign',
-        params: [message, this.account]
-      })
+      if (config.app.isDevMode) {
+        console.log('开始WalletConnect签名...')
+        console.log('准备调用 provider.request，参数:', {
+          method: 'personal_sign',
+          params: [message, this.account]
+        })
+      }
       
       // 直接使用provider.request进行签名
       const signature = await this.provider.request({
@@ -187,7 +202,9 @@ class WalletConnectService {
         params: [message, this.account]
       })
 
-      console.log('签名成功，返回结果:', signature)
+      if (config.app.isDevMode) {
+        console.log('签名成功，返回结果:', signature)
+      }
       
       const result = {
         message,
@@ -195,45 +212,49 @@ class WalletConnectService {
         address: this.account
       }
       
-      console.log('=== WalletConnect signMessage 成功完成 ===')
+      if (config.app.isDevMode) {
+        console.log('=== WalletConnect signMessage 成功完成 ===')
+      }
       return result
     } catch (error) {
-      console.log('=== WalletConnect signMessage 出现错误 ===')
-      console.log('错误对象:', error)
-      console.log('错误类型:', typeof error)
-      console.log('错误构造函数:', error.constructor.name)
-      
-      // 强制显示更多错误信息
-      console.log('错误名称:', error.name)
-      console.log('错误消息:', error.message)
-      console.log('错误堆栈:', error.stack)
-      
-      // 尝试JSON序列化错误对象
-      try {
-        console.log('错误JSON:', JSON.stringify(error, null, 2))
-      } catch (e) {
-        console.log('JSON序列化失败:', e)
-      }
-      
-      // 尝试toString
-      try {
-        console.log('错误toString:', error.toString())
-      } catch (e) {
-        console.log('toString失败:', e)
-      }
-      
-      if (error && typeof error === 'object') {
-        console.log('错误对象属性:')
-        for (let key in error) {
-          try {
-            console.log(`  ${key}:`, error[key])
-          } catch (e) {
-            console.log(`  ${key}: [无法访问]`)
+      if (config.app.isDevMode) {
+        console.log('=== WalletConnect signMessage 出现错误 ===')
+        console.log('错误对象:', error)
+        console.log('错误类型:', typeof error)
+        console.log('错误构造函数:', error.constructor.name)
+        
+        // 强制显示更多错误信息
+        console.log('错误名称:', error.name)
+        console.log('错误消息:', error.message)
+        console.log('错误堆栈:', error.stack)
+        
+        // 尝试JSON序列化错误对象
+        try {
+          console.log('错误JSON:', JSON.stringify(error, null, 2))
+        } catch (e) {
+          console.log('JSON序列化失败:', e)
+        }
+        
+        // 尝试toString
+        try {
+          console.log('错误toString:', error.toString())
+        } catch (e) {
+          console.log('toString失败:', e)
+        }
+        
+        if (error && typeof error === 'object') {
+          console.log('错误对象属性:')
+          for (let key in error) {
+            try {
+              console.log(`  ${key}:`, error[key])
+            } catch (e) {
+              console.log(`  ${key}: [无法访问]`)
+            }
           }
         }
+        
+        console.error('WalletConnect签名失败:', error)
       }
-      
-      console.error('WalletConnect签名失败:', error)
       
       // 抛出包含更多信息的错误
       let errorInfo = '未知错误'
@@ -262,9 +283,13 @@ class WalletConnectService {
       this.account = null
       this.chainId = null
       
-      console.log('WalletConnect已断开连接')
+      if (config.app.isDevMode) {
+        console.log('WalletConnect已断开连接')
+      }
     } catch (error) {
-      console.error('断开WalletConnect连接失败:', error)
+      if (config.app.isDevMode) {
+        console.error('断开WalletConnect连接失败:', error)
+      }
       throw error
     }
   }
@@ -291,7 +316,9 @@ class WalletConnectService {
       const balance = await this.ethersProvider.getBalance(targetAddress)
       return ethers.formatEther(balance)
     } catch (error) {
-      console.error('获取余额失败:', error)
+      if (config.app.isDevMode) {
+        console.error('获取余额失败:', error)
+      }
       throw error
     }
   }
@@ -305,23 +332,25 @@ class WalletConnectService {
 
       return await this.ethersProvider.getNetwork()
     } catch (error) {
-      console.error('获取网络信息失败:', error)
-      throw error
+      if (config.app.isDevMode) {
+        console.error('获取网络信息失败:', error)
+      }
+      throw error;
     }
   }
 
   // 检查是否支持当前网络
   isSupportedChain(chainId) {
-    return walletConnectConfig.chains.includes(Number(chainId))
+    return walletConnectConfig.chains.includes(Number(chainId));
   }
 
   // 获取支持的网络列表
   getSupportedChains() {
-    return walletConnectConfig.chains
+    return walletConnectConfig.chains;
   }
 }
 
 // 创建单例实例
-const walletConnectService = new WalletConnectService()
+var walletConnectService = new WalletConnectService();
 
-export default walletConnectService 
+export default walletConnectService; 

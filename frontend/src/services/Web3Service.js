@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import walletConnectService from './WalletConnectService.js';
+import config from '../config/index.js';
 
 class Web3Service {
   constructor() {
@@ -123,7 +124,11 @@ class Web3Service {
           // 移动端没有window.ethereum时，提供WalletConnect选项
           throw new Error('检测到移动设备，建议使用WalletConnect连接');
         } else {
-          throw new Error('未检测到钱包，请安装MetaMask或其他兼容的钱包');
+          // 桌面端没有检测到MetaMask插件，直接跳转到安装页面
+          console.log('桌面端未检测到MetaMask插件，跳转到安装页面')
+          this.redirectToMetaMaskInstall()
+          // 不抛出错误，静默处理
+          return false
         }
       }
 
@@ -170,7 +175,9 @@ class Web3Service {
         walletType: this.walletType
       };
     } catch (error) {
-      console.error('连接钱包失败:', error);
+      if (config.app.isDevMode) {
+        console.error('连接钱包失败:', error);
+      }
       throw error;
     }
   }
@@ -192,7 +199,9 @@ class Web3Service {
 
       return result;
     } catch (error) {
-      console.error('WalletConnect连接失败:', error);
+      if (config.app.isDevMode) {
+        console.error('WalletConnect连接失败:', error);
+      }
       throw error;
     }
   }
@@ -356,6 +365,28 @@ class Web3Service {
       isExternalBrowser: this.isExternalBrowser(),
       isInMetaMaskBrowser: this.isInMetaMaskBrowser()
     };
+  }
+
+  // 重定向到MetaMask安装页面
+  redirectToMetaMaskInstall() {
+    const userAgent = navigator.userAgent.toLowerCase()
+    let installUrl = 'https://metamask.io/download/'
+    
+    // 根据浏览器类型选择不同的安装链接
+    if (userAgent.includes('chrome')) {
+      installUrl = 'https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn'
+    } else if (userAgent.includes('firefox')) {
+      installUrl = 'https://addons.mozilla.org/en-US/firefox/addon/ether-metamask/'
+    } else if (userAgent.includes('edge')) {
+      installUrl = 'https://microsoftedge.microsoft.com/addons/detail/metamask/ejbalbakoplchlghecdalmeeeajnimhm'
+    } else if (userAgent.includes('safari')) {
+      installUrl = 'https://metamask.io/download/'
+    }
+    
+    console.log('跳转到MetaMask安装页面:', installUrl)
+    
+    // 在新标签页中打开安装页面
+    window.open(installUrl, '_blank')
   }
 }
 

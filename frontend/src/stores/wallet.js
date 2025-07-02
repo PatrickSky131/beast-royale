@@ -116,7 +116,9 @@ export const useWalletStore = defineStore('wallet', {
         
       } catch (error) {
         console.error('连接钱包失败:', error)
-        this.error = error.message
+        if (config.app.isDevMode) {
+          this.error = error.message
+        }
         return false
       } finally {
         this.isConnecting = false
@@ -149,7 +151,9 @@ export const useWalletStore = defineStore('wallet', {
         return false
       } catch (error) {
         console.error('MetaMask连接失败:', error)
-        this.error = error.message
+        if (config.app.isDevMode) {
+          this.error = error.message
+        }
         return false
       }
     },
@@ -234,7 +238,9 @@ export const useWalletStore = defineStore('wallet', {
         console.log('错误构造函数:', error.constructor.name)
         
         console.error('WalletConnect连接失败:', error)
-        this.error = error.message
+        if (config.app.isDevMode) {
+          this.error = error.message
+        }
         return false
       }
     },
@@ -263,7 +269,9 @@ export const useWalletStore = defineStore('wallet', {
         }
       } catch (error) {
         console.error('签名验证失败:', error)
-        this.error = error.message
+        if (config.app.isDevMode) {
+          this.error = error.message
+        }
         return false
       }
     },
@@ -316,7 +324,9 @@ export const useWalletStore = defineStore('wallet', {
 
       } catch (error) {
         console.error('获取nonce或签名失败:', error)
-        this.error = error.message
+        if (config.app.isDevMode) {
+          this.error = error.message
+        }
         return false
       }
     },
@@ -338,7 +348,9 @@ export const useWalletStore = defineStore('wallet', {
         console.log('钱包已断开连接')
       } catch (error) {
         console.error('断开连接失败:', error)
-        this.error = error.message
+        if (config.app.isDevMode) {
+          this.error = error.message
+        }
       }
     },
 
@@ -397,29 +409,61 @@ export const useWalletStore = defineStore('wallet', {
               console.log('检测到钱包已连接，等待用户手动进行连接和签名验证')
               return true
             } else {
-              this.error = '未检测到连接的钱包账户，请确保已在钱包中连接此网站'
+              if (config.app.isDevMode) {
+                this.error = '未检测到连接的钱包账户，请确保已在钱包中连接此网站'
+              }
               return false
             }
           } catch (error) {
             console.error('检查连接状态失败:', error)
-            this.error = `检查连接状态失败: ${error.message}`
+            if (config.app.isDevMode) {
+              this.error = `检查连接状态失败: ${error.message}`
+            }
             return false
           }
         } else {
-          // 只有在桌面端才显示"未检测到钱包"的错误
+          // 桌面端没有检测到MetaMask插件，直接跳转到安装页面
           if (!isMobile) {
-            this.error = '未检测到钱包，请确保已安装兼容的钱包插件'
+            console.log('桌面端未检测到MetaMask插件，跳转到安装页面')
+            this.redirectToMetaMaskInstall()
+            return false
           } else {
             // 移动端MetaMask内置浏览器但没有ethereum对象的情况
-            this.error = 'MetaMask内置浏览器中未检测到钱包，请确保MetaMask已正确安装'
+            if (config.app.isDevMode) {
+              this.error = 'MetaMask内置浏览器中未检测到钱包，请确保MetaMask已正确安装'
+            }
+            return false
           }
-          return false
         }
       } catch (error) {
         console.error('手动检查连接失败:', error)
-        this.error = error.message
+        if (config.app.isDevMode) {
+          this.error = error.message
+        }
         return false
       }
+    },
+
+    // 跳转到MetaMask安装页面
+    redirectToMetaMaskInstall() {
+      const userAgent = navigator.userAgent.toLowerCase()
+      let installUrl = 'https://metamask.io/download/'
+      
+      // 根据浏览器类型选择不同的安装链接
+      if (userAgent.includes('chrome')) {
+        installUrl = 'https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn'
+      } else if (userAgent.includes('firefox')) {
+        installUrl = 'https://addons.mozilla.org/en-US/firefox/addon/ether-metamask/'
+      } else if (userAgent.includes('edge')) {
+        installUrl = 'https://microsoftedge.microsoft.com/addons/detail/metamask/ejbalbakoplchlghecdalmeeeajnimhm'
+      } else if (userAgent.includes('safari')) {
+        installUrl = 'https://metamask.io/download/'
+      }
+      
+      console.log('跳转到MetaMask安装页面:', installUrl)
+      
+      // 在新标签页中打开安装页面
+      window.open(installUrl, '_blank')
     },
 
     // 获取钱包类型显示名称

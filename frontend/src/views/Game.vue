@@ -10,7 +10,6 @@
       
       <!-- 钱包选择 -->
       <div v-if="!walletStore.isConnected && !walletStore.isAddressObtained" class="wallet-options">
-        <h3>选择连接方式</h3>
         
         <!-- 桌面端连接选项 -->
         <div v-if="!walletStore.isMobileDevice" class="desktop-options">
@@ -102,7 +101,7 @@
               :disabled="walletStore.isConnecting"
             >
               <span v-if="walletStore.isConnecting">验证中...</span>
-              <span v-else>🔐 完成签名验证</span>
+              <span v-else>🔐 签名验证</span>
             </button>
             
             <button 
