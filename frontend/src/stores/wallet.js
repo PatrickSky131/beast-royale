@@ -156,29 +156,43 @@ export const useWalletStore = defineStore('wallet', {
 
     // 专门用于WalletConnect连接
     async connectWithWalletConnect() {
+      console.log('=== wallet store connectWithWalletConnect 开始 ===')
       console.log('使用WalletConnect连接...')
       try {
+        console.log('步骤1: 调用 web3Service.connect(walletconnect)')
         // 直接调用web3Service连接，避免递归
         const result = await web3Service.connect('walletconnect')
+        console.log('步骤1结果:', result)
+        
         if (result) {
+          console.log('步骤2: 设置连接信息')
           this.address = web3Service.account
           this.walletType = 'walletconnect'
           this.chainId = web3Service.chainId
+          this.isAddressObtained = true  // 已获取地址
+          this.isConnected = false       // 但还未完成签名验证
           this.error = null
           
-          // 连接成功后，进行签名验证
-          const signResult = await this.getNonceAndSign(this.address)
-          if (signResult) {
-            this.isAddressObtained = true
-            this.isConnected = true
-            return true
-          } else {
-            // 签名验证失败，不设置连接状态
-            return false
-          }
+          console.log('设置的信息:', {
+            address: this.address,
+            walletType: this.walletType,
+            chainId: this.chainId,
+            isAddressObtained: this.isAddressObtained,
+            isConnected: this.isConnected
+          })
+          
+          console.log('=== wallet store connectWithWalletConnect 成功完成 ===')
+          console.log('WalletConnect连接成功，请点击"签名验证"按钮完成身份验证')
+          return true
         }
+        console.log('步骤1失败: web3Service.connect返回false')
         return false
       } catch (error) {
+        console.log('=== wallet store connectWithWalletConnect 出现错误 ===')
+        console.log('错误对象:', error)
+        console.log('错误类型:', typeof error)
+        console.log('错误构造函数:', error.constructor.name)
+        
         console.error('WalletConnect连接失败:', error)
         this.error = error.message
         return false

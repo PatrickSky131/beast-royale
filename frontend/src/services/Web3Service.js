@@ -222,23 +222,43 @@ class Web3Service {
 
   // 签名消息
   async signMessage(message) {
+    console.log('=== Web3Service signMessage 开始 ===')
+    console.log('输入参数 message:', message)
+    console.log('this.walletType:', this.walletType)
+    
     try {
       if (this.walletType === 'walletconnect') {
-        return await walletConnectService.signMessage(message);
+        console.log('使用 WalletConnect 签名')
+        const result = await walletConnectService.signMessage(message);
+        console.log('WalletConnect 签名结果:', result)
+        return result
       }
 
+      console.log('使用标准钱包签名')
+      console.log('this.signer:', this.signer)
+      console.log('this.account:', this.account)
+      
       if (!this.signer || !this.account) {
         throw new Error('请先连接钱包');
       }
 
       const signature = await this.signer.signMessage(message);
       
-      return {
+      const result = {
         message,
         signature,
         address: this.account
       };
+      
+      console.log('标准钱包签名结果:', result)
+      console.log('=== Web3Service signMessage 成功完成 ===')
+      return result
     } catch (error) {
+      console.log('=== Web3Service signMessage 出现错误 ===')
+      console.log('错误对象:', error)
+      console.log('错误类型:', typeof error)
+      console.log('错误构造函数:', error.constructor.name)
+      
       console.error('签名失败:', error);
       throw error;
     }

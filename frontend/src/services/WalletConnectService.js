@@ -123,7 +123,17 @@ class WalletConnectService {
       console.error('WalletConnect连接失败:', error)
       
       // 安全地检查错误消息
-      const errorMessage = error?.message || error?.toString() || 'Unknown error'
+      let errorMessage = 'Unknown error'
+      try {
+        if (error && typeof error === 'object') {
+          errorMessage = error.message || error.toString() || 'Unknown error'
+        } else if (typeof error === 'string') {
+          errorMessage = error
+        }
+      } catch (e) {
+        console.error('解析错误消息失败:', e)
+        errorMessage = 'Unknown error'
+      }
       
       // 提供更友好的错误信息
       if (errorMessage.includes('Project ID')) {
@@ -142,34 +152,139 @@ class WalletConnectService {
 
   // 签名消息
   async signMessage(message) {
+    console.log('=== WalletConnect signMessage 开始 ===')
+    console.log('输入参数 message:', message)
+    console.log('this.provider:', this.provider)
+    console.log('this.account:', this.account)
+    console.log('this.ethersProvider:', this.ethersProvider)
+    
     try {
-      if (!this.ethersProvider || !this.account) {
+      if (!this.provider || !this.account) {
+        console.error('检查失败: provider或account不存在')
         throw new Error('请先连接WalletConnect')
+      }
+
+      // 检查provider的状态
+      console.log('检查provider状态...')
+      console.log('provider.connected:', this.provider.connected)
+      console.log('provider.chainId:', this.provider.chainId)
+      console.log('provider.accounts:', this.provider.accounts)
+      
+      // 确保provider已连接
+      if (!this.provider.connected) {
+        console.log('Provider未连接，尝试重新连接...')
+        await this.provider.enable()
       }
 
       console.log('开始WalletConnect签名...')
       
-      const signer = await this.ethersProvider.getSigner()
-      const signature = await signer.signMessage(message)
+      let signature = null
+      
+      // 方法1: 尝试使用ethers.js的签名方法
+      try {
+        console.log('尝试使用ethers.js签名方法...')
+        if (this.ethersProvider) {
+          const signer = this.ethersProvider.getSigner()
+          signature = await signer.signMessage(message)
+          console.log('ethers.js签名成功:', signature)
+        } else {
+          throw new Error('ethersProvider不存在')
+        }
+      } catch (ethersError) {
+        console.log('ethers.js签名失败，尝试直接使用provider.request...')
+        console.log('ethers错误:', ethersError)
+        
+        // 方法2: 直接使用provider.request
+        try {
+          console.log('准备调用 provider.request，参数:', {
+            method: 'personal_sign',
+            params: [message, this.account]
+          })
+          
+          signature = await this.provider.request({
+            method: 'personal_sign',
+            params: [message, this.account]
+          })
+          
+          console.log('provider.request签名成功:', signature)
+        } catch (requestError) {
+          console.log('provider.request也失败，尝试其他方法...')
+          console.log('request错误:', requestError)
+          
+          // 方法3: 尝试使用eth_sign方法
+          try {
+            console.log('尝试使用eth_sign方法...')
+            signature = await this.provider.request({
+              method: 'eth_sign',
+              params: [this.account, message]
+            })
+            console.log('eth_sign签名成功:', signature)
+          } catch (ethSignError) {
+            console.log('所有签名方法都失败了')
+            throw ethSignError
+          }
+        }
+      }
 
-      return {
+      console.log('签名成功，返回结果:', signature)
+      
+      const result = {
         message,
         signature,
         address: this.account
       }
+      
+      console.log('=== WalletConnect signMessage 成功完成 ===')
+      return result
     } catch (error) {
+      console.log('=== WalletConnect signMessage 出现错误 ===')
+      console.log('错误对象:', error)
+      console.log('错误类型:', typeof error)
+      console.log('错误构造函数:', error.constructor.name)
+      
+      // 强制显示更多错误信息
+      console.log('错误名称:', error.name)
+      console.log('错误消息:', error.message)
+      console.log('错误堆栈:', error.stack)
+      
+      // 尝试JSON序列化错误对象
+      try {
+        console.log('错误JSON:', JSON.stringify(error, null, 2))
+      } catch (e) {
+        console.log('JSON序列化失败:', e)
+      }
+      
+      // 尝试toString
+      try {
+        console.log('错误toString:', error.toString())
+      } catch (e) {
+        console.log('toString失败:', e)
+      }
+      
+      if (error && typeof error === 'object') {
+        console.log('错误对象属性:')
+        for (let key in error) {
+          try {
+            console.log(`  ${key}:`, error[key])
+          } catch (e) {
+            console.log(`  ${key}: [无法访问]`)
+          }
+        }
+      }
+      
       console.error('WalletConnect签名失败:', error)
       
-      // 安全地检查错误消息
-      const errorMessage = error?.message || error?.toString() || 'Unknown error'
-      
-      if (errorMessage.includes('User rejected') || errorMessage.includes('user rejected')) {
-        throw new Error('用户取消了签名请求')
-      } else if (errorMessage.includes('User denied') || errorMessage.includes('user denied')) {
-        throw new Error('用户拒绝了签名请求')
-      } else {
-        throw new Error(`WalletConnect签名失败: ${errorMessage}`)
+      // 抛出包含更多信息的错误
+      let errorInfo = '未知错误'
+      try {
+        if (error.message) errorInfo = error.message
+        else if (error.toString) errorInfo = error.toString()
+        else errorInfo = '无法获取错误信息'
+      } catch (e) {
+        errorInfo = '错误信息解析失败'
       }
+      
+      throw new Error(`WalletConnect签名失败: ${errorInfo}`)
     }
   }
 
