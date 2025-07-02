@@ -156,7 +156,6 @@ class WalletConnectService {
     console.log('输入参数 message:', message)
     console.log('this.provider:', this.provider)
     console.log('this.account:', this.account)
-    console.log('this.ethersProvider:', this.ethersProvider)
     
     try {
       if (!this.provider || !this.account) {
@@ -177,54 +176,16 @@ class WalletConnectService {
       }
 
       console.log('开始WalletConnect签名...')
+      console.log('准备调用 provider.request，参数:', {
+        method: 'personal_sign',
+        params: [message, this.account]
+      })
       
-      let signature = null
-      
-      // 方法1: 尝试使用ethers.js的签名方法
-      try {
-        console.log('尝试使用ethers.js签名方法...')
-        if (this.ethersProvider) {
-          const signer = this.ethersProvider.getSigner()
-          signature = await signer.signMessage(message)
-          console.log('ethers.js签名成功:', signature)
-        } else {
-          throw new Error('ethersProvider不存在')
-        }
-      } catch (ethersError) {
-        console.log('ethers.js签名失败，尝试直接使用provider.request...')
-        console.log('ethers错误:', ethersError)
-        
-        // 方法2: 直接使用provider.request
-        try {
-          console.log('准备调用 provider.request，参数:', {
-            method: 'personal_sign',
-            params: [message, this.account]
-          })
-          
-          signature = await this.provider.request({
-            method: 'personal_sign',
-            params: [message, this.account]
-          })
-          
-          console.log('provider.request签名成功:', signature)
-        } catch (requestError) {
-          console.log('provider.request也失败，尝试其他方法...')
-          console.log('request错误:', requestError)
-          
-          // 方法3: 尝试使用eth_sign方法
-          try {
-            console.log('尝试使用eth_sign方法...')
-            signature = await this.provider.request({
-              method: 'eth_sign',
-              params: [this.account, message]
-            })
-            console.log('eth_sign签名成功:', signature)
-          } catch (ethSignError) {
-            console.log('所有签名方法都失败了')
-            throw ethSignError
-          }
-        }
-      }
+      // 直接使用provider.request进行签名
+      const signature = await this.provider.request({
+        method: 'personal_sign',
+        params: [message, this.account]
+      })
 
       console.log('签名成功，返回结果:', signature)
       

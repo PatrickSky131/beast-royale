@@ -158,6 +158,12 @@ export const useWalletStore = defineStore('wallet', {
     async connectWithWalletConnect() {
       console.log('=== wallet store connectWithWalletConnect 开始 ===')
       console.log('使用WalletConnect连接...')
+      
+      // 调试配置
+      console.log('配置文件内容:', config)
+      console.log('钱包配置:', config.wallet)
+      console.log('自动签名配置值:', config.wallet.autoSignAfterConnect)
+      
       try {
         console.log('步骤1: 调用 web3Service.connect(walletconnect)')
         // 直接调用web3Service连接，避免递归
@@ -169,21 +175,55 @@ export const useWalletStore = defineStore('wallet', {
           this.address = web3Service.account
           this.walletType = 'walletconnect'
           this.chainId = web3Service.chainId
-          this.isAddressObtained = true  // 已获取地址
-          this.isConnected = false       // 但还未完成签名验证
           this.error = null
           
           console.log('设置的信息:', {
             address: this.address,
             walletType: this.walletType,
-            chainId: this.chainId,
-            isAddressObtained: this.isAddressObtained,
-            isConnected: this.isConnected
+            chainId: this.chainId
           })
           
-          console.log('=== wallet store connectWithWalletConnect 成功完成 ===')
-          console.log('WalletConnect连接成功，请点击"签名验证"按钮完成身份验证')
-          return true
+          // 检查是否自动进行签名验证
+          const autoSign = config.wallet.autoSignAfterConnect
+          console.log('自动签名配置:', autoSign)
+          
+          if (autoSign) {
+            console.log('步骤3: 自动进行签名验证')
+            // 自动进行签名验证
+            const signResult = await this.getNonceAndSign(this.address)
+            console.log('步骤3结果:', signResult)
+            
+            if (signResult) {
+              console.log('步骤4: 设置最终连接状态')
+              this.isAddressObtained = true
+              this.isConnected = true
+              console.log('=== wallet store connectWithWalletConnect 成功完成（自动签名） ===')
+              return true
+            } else {
+              console.log('步骤4: 自动签名验证失败')
+              // 签名验证失败，设置为需要手动签名
+              this.isAddressObtained = true
+              this.isConnected = false
+              return false
+            }
+          } else {
+            console.log('步骤3: 设置为需要手动签名验证')
+            // 设置为需要手动签名验证
+            this.isAddressObtained = true
+            this.isConnected = false
+            
+            console.log('设置的信息:', {
+              address: this.address,
+              walletType: this.walletType,
+              chainId: this.chainId,
+              isAddressObtained: this.isAddressObtained,
+              isConnected: this.isConnected
+            })
+            
+            console.log('=== wallet store connectWithWalletConnect 成功完成（需要手动签名） ===')
+            console.log('WalletConnect连接成功，请点击"签名验证"按钮完成身份验证')
+            return true
+          }
         }
         console.log('步骤1失败: web3Service.connect返回false')
         return false
