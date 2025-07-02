@@ -1,13 +1,14 @@
 import { ethers } from 'ethers';
+import walletConnectService from './WalletConnectService.js';
 
 class Web3Service {
   constructor() {
     this.provider = null;
     this.signer = null;
     this.account = null;
-    this.chainId = null;
     this.isConnected = false;
     this.walletType = null; // 'metamask', 'walletconnect', 'coinbase', etc.
+    this.chainId = null;
   }
 
   // 检测可用的钱包
@@ -39,6 +40,17 @@ class Web3Service {
           description: '通过深链接在MetaMask应用中打开'
         });
       }
+
+      // 外部浏览器中添加WalletConnect选项
+      if (walletConnectService.isExternalBrowser()) {
+        wallets.push({
+          name: 'WalletConnect',
+          type: 'walletconnect',
+          available: true,
+          isMobile: true,
+          description: '通过二维码连接移动钱包'
+        });
+      }
     } else {
       // 桌面端：检测实际的钱包扩展
       if (typeof window.ethereum !== 'undefined') {
@@ -49,6 +61,15 @@ class Web3Service {
           isMetaMask: window.ethereum.isMetaMask
         });
       }
+
+      // 桌面端也可以使用WalletConnect
+      wallets.push({
+        name: 'WalletConnect',
+        type: 'walletconnect',
+        available: true,
+        isMobile: false,
+        description: '通过二维码连接移动钱包'
+      });
     }
     
     // 检测其他钱包（桌面和移动端都检测）
@@ -80,16 +101,31 @@ class Web3Service {
     try {
       const isMobile = this.isMobileDevice();
       
+      // 如果指定了WalletConnect或者在外部浏览器中自动选择WalletConnect
+      if (walletType === 'walletconnect' || (isMobile && walletConnectService.isExternalBrowser() && walletType === 'auto')) {
+        return await this.connectViaWalletConnect();
+      }
+      
       // 移动端特殊处理
       if (isMobile && !this.isInMetaMaskBrowser()) {
-        // 在外部浏览器中，尝试通过深链接连接
-        return await this.connectViaMobileDeepLink();
+        // 在外部浏览器中，优先尝试WalletConnect
+        if (walletType === 'auto') {
+          try {
+            return await this.connectViaWalletConnect();
+          } catch (wcError) {
+            console.log('WalletConnect连接失败，尝试深链接...', wcError);
+            return await this.connectViaMobileDeepLink();
+          }
+        } else if (walletType === 'metamask_deeplink') {
+          return await this.connectViaMobileDeepLink();
+        }
       }
       
       // 标准连接流程（桌面端或MetaMask内置浏览器）
       if (typeof window.ethereum === 'undefined') {
         if (isMobile) {
-          throw new Error('请在MetaMask应用内置浏览器中打开此页面，或安装MetaMask应用');
+          // 移动端没有window.ethereum时，提供WalletConnect选项
+          throw new Error('检测到移动设备，建议使用WalletConnect连接');
         } else {
           throw new Error('未检测到钱包，请安装MetaMask或其他兼容的钱包');
         }
@@ -143,35 +179,63 @@ class Web3Service {
     }
   }
 
+  // 通过WalletConnect连接
+  async connectViaWalletConnect() {
+    try {
+      console.log('使用WalletConnect连接...');
+      
+      const result = await walletConnectService.connect();
+      
+      // 更新当前服务状态
+      this.account = result.account;
+      this.chainId = result.chainId;
+      this.isConnected = result.isConnected;
+      this.walletType = 'walletconnect';
+      this.provider = walletConnectService.ethersProvider;
+      this.signer = await this.provider.getSigner();
+
+      return result;
+    } catch (error) {
+      console.error('WalletConnect连接失败:', error);
+      throw error;
+    }
+  }
+
   // 移动端深链接连接
   async connectViaMobileDeepLink() {
     try {
+      // 保存当前状态到localStorage
+      const currentState = {
+        timestamp: Date.now(),
+        returnUrl: window.location.href
+      }
+      localStorage.setItem('beast_royale_deeplink_state', JSON.stringify(currentState))
+      
       // 构建MetaMask深链接
-      const currentUrl = encodeURIComponent(window.location.href);
-      const metamaskDeepLink = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}${window.location.search}`;
+      const metamaskDeepLink = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}${window.location.search}`
       
       // 显示连接指引
       const userConfirmed = confirm(
         '要连接MetaMask钱包，请:\n\n' +
         '1. 点击"确定"跳转到MetaMask应用\n' +
         '2. 在MetaMask中授权连接\n' +
-        '3. 返回此页面完成连接\n\n' +
-        '点击"取消"手动输入钱包地址'
-      );
+        '3. 返回此页面会自动检测连接状态\n\n' +
+        '点击"取消"使用WalletConnect连接'
+      )
       
       if (userConfirmed) {
         // 尝试打开MetaMask应用
-        window.location.href = metamaskDeepLink;
+        window.location.href = metamaskDeepLink
         
         // 抛出特殊错误，告知用户正在跳转
-        throw new Error('正在跳转到MetaMask应用，请在应用中完成连接后返回此页面');
+        throw new Error('正在跳转到MetaMask应用，请在应用中完成连接后返回此页面')
       } else {
-        // 用户选择手动连接
-        throw new Error('manual_connection_needed');
+        // 用户选择使用WalletConnect
+        return await this.connectViaWalletConnect()
       }
     } catch (error) {
-      console.error('移动端深链接连接失败:', error);
-      throw error;
+      console.error('移动端深链接连接失败:', error)
+      throw error
     }
   }
 
@@ -182,38 +246,29 @@ class Web3Service {
     return `https://metamask.app.link/dapp/${window.location.host}${currentPath}`;
   }
 
-  // 处理账户变更
-  handleAccountsChanged(accounts) {
-    console.log('账户变更:', accounts);
-    if (accounts.length === 0) {
-      // 用户断开了连接
-      this.disconnect();
-    } else {
-      this.account = accounts[0];
-    }
+  // 检测是否为移动设备
+  isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   }
 
-  // 处理链变更
-  handleChainChanged(chainId) {
-    console.log('链变更:', chainId);
-    this.chainId = parseInt(chainId, 16);
-    // 刷新页面以应用新链
-    window.location.reload();
+  // 检测是否在MetaMask内置浏览器中
+  isInMetaMaskBrowser() {
+    const userAgent = navigator.userAgent.toLowerCase();
+    return userAgent.includes('metamask') || userAgent.includes('web3');
   }
 
-  // 断开连接
-  disconnect() {
-    this.isConnected = false;
-    this.account = null;
-    this.chainId = null;
-    this.provider = null;
-    this.signer = null;
-    this.walletType = null;
+  // 检测是否在外部浏览器中
+  isExternalBrowser() {
+    return this.isMobileDevice() && !this.isInMetaMaskBrowser() && typeof window.ethereum === 'undefined';
   }
 
   // 签名消息
   async signMessage(message) {
     try {
+      if (this.walletType === 'walletconnect') {
+        return await walletConnectService.signMessage(message);
+      }
+
       if (!this.signer || !this.account) {
         throw new Error('请先连接钱包');
       }
@@ -231,37 +286,23 @@ class Web3Service {
     }
   }
 
-  // 签名交易
-  async signTransaction(transaction) {
+  // 断开连接
+  async disconnect() {
     try {
-      if (!this.signer || !this.account) {
-        throw new Error('请先连接钱包');
+      if (this.walletType === 'walletconnect') {
+        await walletConnectService.disconnect();
       }
-
-      const signedTx = await this.signer.signTransaction(transaction);
-      return signedTx;
-    } catch (error) {
-      console.error('交易签名失败:', error);
-      throw error;
-    }
-  }
-
-  // 发送交易
-  async sendTransaction(transaction) {
-    try {
-      if (!this.signer || !this.account) {
-        throw new Error('请先连接钱包');
-      }
-
-      const tx = await this.signer.sendTransaction(transaction);
-      const receipt = await tx.wait();
       
-      return {
-        hash: tx.hash,
-        receipt
-      };
+      this.provider = null;
+      this.signer = null;
+      this.account = null;
+      this.isConnected = false;
+      this.walletType = null;
+      this.chainId = null;
+      
+      console.log('钱包已断开连接');
     } catch (error) {
-      console.error('发送交易失败:', error);
+      console.error('断开连接失败:', error);
       throw error;
     }
   }
@@ -269,15 +310,15 @@ class Web3Service {
   // 获取余额
   async getBalance(address = null) {
     try {
+      if (this.walletType === 'walletconnect') {
+        return await walletConnectService.getBalance(address);
+      }
+
       if (!this.provider) {
         throw new Error('请先连接钱包');
       }
 
       const targetAddress = address || this.account;
-      if (!targetAddress) {
-        throw new Error('没有有效的地址');
-      }
-
       const balance = await this.provider.getBalance(targetAddress);
       return ethers.formatEther(balance);
     } catch (error) {
@@ -289,39 +330,45 @@ class Web3Service {
   // 获取网络信息
   async getNetwork() {
     try {
+      if (this.walletType === 'walletconnect') {
+        return await walletConnectService.getNetwork();
+      }
+
       if (!this.provider) {
         throw new Error('请先连接钱包');
       }
 
-      const network = await this.provider.getNetwork();
-      return {
-        chainId: network.chainId,
-        name: network.name
-      };
+      return await this.provider.getNetwork();
     } catch (error) {
       console.error('获取网络信息失败:', error);
       throw error;
     }
   }
 
-  // 检查是否在移动设备上
-  isMobileDevice() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  // 处理账户变更
+  handleAccountsChanged(accounts) {
+    console.log('账户变更:', accounts);
+    if (accounts.length === 0) {
+      this.disconnect();
+    } else {
+      this.account = accounts[0];
+    }
   }
 
-  // 检查是否在MetaMask内置浏览器中
-  isInMetaMaskBrowser() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    return userAgent.includes('metamask') || userAgent.includes('web3');
-  }
-
-  // 检查是否在外部浏览器中
-  isExternalBrowser() {
-    return this.isMobileDevice() && !this.isInMetaMaskBrowser();
+  // 处理链变更
+  handleChainChanged(chainId) {
+    console.log('链变更:', chainId);
+    this.chainId = chainId;
+    // 重新加载页面以确保dapp与新链正常工作
+    window.location.reload();
   }
 
   // 获取连接状态
   getConnectionStatus() {
+    if (this.walletType === 'walletconnect') {
+      return walletConnectService.getConnectionStatus();
+    }
+
     return {
       isConnected: this.isConnected,
       account: this.account,
@@ -331,30 +378,6 @@ class Web3Service {
       isExternalBrowser: this.isExternalBrowser(),
       isInMetaMaskBrowser: this.isInMetaMaskBrowser()
     };
-  }
-
-  // 检查是否已连接
-  async checkConnection() {
-    try {
-      if (typeof window.ethereum === 'undefined') {
-        return false;
-      }
-
-      const accounts = await window.ethereum.request({
-        method: 'eth_accounts'
-      });
-
-      if (accounts.length > 0) {
-        // 如果检测到已连接的账户，重新初始化连接
-        await this.connect();
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('检查连接状态失败:', error);
-      return false;
-    }
   }
 }
 

@@ -1,86 +1,97 @@
 #!/bin/bash
 
-# ngrok 重启脚本
-# 单独重启ngrok服务，保持URL不变或获取新URL
+# 重启ngrok服务脚本
+# 使用方法: ./restart-ngrok.sh
 
-echo "🔄 重启 ngrok 服务..."
+echo "🔄 重启ngrok服务..."
 
-# 创建logs目录（如果不存在）
-mkdir -p logs
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# 检查ngrok是否在运行
-if pgrep -f "ngrok" > /dev/null; then
-    echo "📊 当前ngrok URL:"
-    curl -s http://localhost:4040/api/tunnels | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-if data['tunnels']:
-    print(f'  {data[\"tunnels\"][0][\"public_url\"]}')
-else:
-    print('  获取失败')
-"
-    echo ""
-    read -p "确定要重启ngrok服务吗？这将生成新的URL (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "❌ 取消重启"
-        exit 0
+# 函数：打印带颜色的消息
+print_status() {
+    echo -e "${BLUE}[$(date '+%H:%M:%S')]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+# 1. 停止ngrok
+print_status "停止ngrok服务..."
+if pgrep -f ngrok >/dev/null; then
+    pkill -f ngrok
+    sleep 2
+    
+    # 检查是否成功停止
+    if pgrep -f ngrok >/dev/null; then
+        print_warning "ngrok进程仍在运行，尝试强制停止..."
+        pkill -9 -f ngrok
+        sleep 1
     fi
     
-    # 停止ngrok服务
-    echo "🛑 停止ngrok服务..."
-    if [ -f logs/ngrok.pid ]; then
-        NGROK_PID=$(cat logs/ngrok.pid)
-        if kill -0 $NGROK_PID 2>/dev/null; then
-            kill $NGROK_PID
-            echo "✅ ngrok服务已停止 (PID: $NGROK_PID)"
-        else
-            echo "⚠️  ngrok进程不存在，强制停止..."
-            pkill -f "ngrok"
-        fi
-        rm -f logs/ngrok.pid
-    else
-        pkill -f "ngrok"
-        echo "✅ ngrok服务已停止"
+    if [ -f ".ngrok.pid" ]; then
+        rm .ngrok.pid
     fi
     
-    # 等待进程完全停止
-    sleep 3
+    print_success "ngrok已停止"
 else
-    echo "ℹ️  ngrok服务未运行"
+    print_warning "ngrok进程未运行"
 fi
 
-# 启动ngrok服务
-echo "🌐 启动ngrok隧道..."
-ngrok http 3000 > logs/ngrok.log 2>&1 &
+# 2. 启动ngrok
+print_status "启动ngrok服务..."
+
+# 检查前端服务是否运行
+if ! lsof -i :5173 >/dev/null 2>&1; then
+    print_warning "前端服务未运行在端口5173"
+    print_status "请先启动前端服务"
+    exit 1
+fi
+
+# 启动ngrok
+ngrok http 5173 &
 NGROK_PID=$!
-echo "✅ ngrok服务已启动 (PID: $NGROK_PID)"
 
 # 保存PID
-echo $NGROK_PID > logs/ngrok.pid
+echo "$NGROK_PID" > .ngrok.pid
+print_success "ngrok已启动 (PID: $NGROK_PID)"
 
 # 等待ngrok启动
-echo "⏳ 等待ngrok启动..."
+print_status "等待ngrok隧道建立..."
 sleep 5
 
-# 获取新的ngrok公共URL
-echo "🔍 获取新的ngrok公共URL..."
-NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-if data['tunnels']:
-    print(data['tunnels'][0]['public_url'])
-else:
-    print('获取失败')
-")
+# 获取ngrok URL
+NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o '"public_url":"[^"]*"' | head -1 | cut -d'"' -f4)
 
-# 显示结果
-echo ""
-echo "🎉 ngrok服务重启完成！"
-echo "=================================="
-echo "🌐 新的公网访问地址: $NGROK_URL"
-echo "📊 ngrok管理界面: http://localhost:4040"
-echo "=================================="
-echo ""
-echo "📝 ngrok日志: logs/ngrok.log"
-echo "" 
+if [ -n "$NGROK_URL" ]; then
+    print_success "ngrok隧道已建立: $NGROK_URL"
+    
+    # 更新前端环境变量
+    if [ -f "frontend/package.json" ]; then
+        print_status "更新前端环境变量..."
+        cd frontend
+        echo "VITE_WALLETCONNECT_PROJECT_ID=2ef4bc0023aa46a876ae676fd622b125" > .env
+        echo "VITE_APP_URL=$NGROK_URL" >> .env
+        print_success "环境变量已更新: VITE_APP_URL=$NGROK_URL"
+        cd ..
+    fi
+else
+    print_warning "无法获取ngrok URL，请手动检查"
+fi
+
+print_success "ngrok服务重启完成！"
+print_status "访问地址: $NGROK_URL"
+print_warning "记得在WalletConnect Cloud中添加域名: $NGROK_URL" 

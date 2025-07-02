@@ -3,12 +3,22 @@
   "version": "1.0.0",
   "description": "Beast Royale Game Frontend",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 5173",
+    "dev:check": "node -e \"const net = require('net'); const server = net.createServer(); server.listen(5173, () => { console.log('✅ 端口5173可用'); server.close(); process.exit(0); }); server.on('error', () => { console.log('⚠️ 端口5173被占用，尝试使用5174'); process.exit(1); });\"",
+    "dev:safe": "npm run dev:check && npm run dev || vite --port 5174",
+    "dev:smart": "node scripts/dev.js",
+    "dev:ngrok": "vite --port 5173 --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "stop": "pkill -f 'vite.*5173' || pkill -f 'vite.*5174' || echo '没有找到运行中的Vite进程'",
+    "stop:safe": "pkill -f 'vite' || echo '没有找到运行中的Vite进程'",
+    "restart": "npm run stop && sleep 2 && npm run dev:safe",
+    "restart:smart": "npm run stop:safe && sleep 2 && npm run dev:smart"
   },
   "dependencies": {
+    "@walletconnect/ethereum-provider": "^2.21.4",
+    "@walletconnect/universal-provider": "^2.21.4",
     "@web3modal/ethereum": "^2.7.1",
     "axios": "^1.6.2",
     "ethers": "^6.8.1",
