@@ -4,7 +4,19 @@ const config = {
   api: {
     // 使用相对路径，让Vite代理处理
     // 这样无论是本地开发还是通过ngrok访问，都能正常工作
-    base: ''
+    base: '',
+    // ngrok配置
+    ngrok: {
+      // 是否自动检测ngrok隧道
+      // true: 自动检测本地运行的ngrok并获取公共URL
+      // false: 使用配置文件中的固定ngrok URL
+      autoDetect: false,
+      // 固定的ngrok URL（当autoDetect为false时使用）
+      // 注意：这里不使用ngrok URL，让所有请求都通过Vite代理
+      fixedUrl: null,
+      // 检测间隔（毫秒）
+      checkInterval: 5000
+    }
   },
   
   // 获取当前环境的API地址
@@ -21,7 +33,7 @@ const config = {
     // 开发者模式
     // true: 显示详细错误信息、调试日志、vConsole等
     // false: 隐藏错误信息，不显示vConsole，只显示用户友好的提示
-    isDevMode: false
+    isDevMode: true
   },
   
   // 钱包配置

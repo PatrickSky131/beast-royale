@@ -1,44 +1,61 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"beast-royale-backend/internal/config"
 	"beast-royale-backend/internal/db"
 	"beast-royale-backend/internal/logger"
-	"beast-royale-backend/internal/server"
+	"beast-royale-backend/server"
 
-	"github.com/joho/godotenv"
+	"github.com/spf13/cobra"
 )
 
-// Execute 启动应用程序
-func Execute() {
-	// 初始化日志系统
-	if err := logger.Init(); err != nil {
-		panic("Failed to initialize logger: " + err.Error())
-	}
+// runCmd represents the run command
+var runCmd = &cobra.Command{
+	Use:   "run",
+	Short: "run Beast Royale Backend service",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := config.InitConfig(configPath)
+		if err != nil {
+			fmt.Printf("load config failed: %+v\n", err)
+			os.Exit(-1)
+		}
 
-	// 加载环境变量
-	if err := godotenv.Load(); err != nil {
-		logger.Info("No .env file found, using system environment variables")
-	}
+		// 初始化日志系统
+		err = logger.Init()
+		if err != nil {
+			fmt.Printf("init logger failed: %+v\n", err)
+			os.Exit(-1)
+		}
 
-	// 初始化数据库
-	if err := db.Init(); err != nil {
-		logger.Error("Failed to initialize database: %v", err)
-		os.Exit(1)
-	}
+		err = db.Init()
+		if err != nil {
+			fmt.Printf("init db failed: %+v\n", err)
+			os.Exit(-1)
+		}
+		fmt.Println("Using config file:", configPath)
 
-	// 获取端口配置
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+		s := server.NewServer(config.GConf)
+		go s.Run()
+		fmt.Printf("http server running on: 0.0.0.0:%d\n", config.GConf.Server.Port)
 
-	// 启动服务器
-	srv := server.New()
-	logger.Info("Server starting on port %s", port)
-	if err := srv.Run(":" + port); err != nil {
-		logger.Error("Failed to start server: %v", err)
-		os.Exit(1)
-	}
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		sig := <-sigCh
+		fmt.Printf("signal received: %s, server shutting down\n", sig)
+		err = s.Stop()
+		if err != nil {
+			fmt.Printf("error shutting down server: %+v\n", err)
+		}
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().StringVarP(&configPath, "config", "c", "", "config file path")
+	runCmd.MarkFlagRequired("config")
 }

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ethers } from 'ethers'
-import axios from 'axios'
+import apiService from '../services/ApiService.js'
 import web3Service from '../services/Web3Service.js'
 import walletConnectService from '../services/WalletConnectService.js'
 import config from '../config/index.js'
@@ -116,7 +116,7 @@ export const useWalletStore = defineStore('wallet', {
         
       } catch (error) {
         console.error('连接钱包失败:', error)
-        if (config.app.isDevMode) {
+        if (config.app && config.app.isDevMode) {
           this.error = error.message
         }
         return false
@@ -151,7 +151,7 @@ export const useWalletStore = defineStore('wallet', {
         return false
       } catch (error) {
         console.error('MetaMask连接失败:', error)
-        if (config.app.isDevMode) {
+        if (config.app && config.app.isDevMode) {
           this.error = error.message
         }
         return false
@@ -198,124 +198,69 @@ export const useWalletStore = defineStore('wallet', {
             console.log('步骤3结果:', signResult)
             
             if (signResult) {
-              console.log('步骤4: 设置最终连接状态')
               this.isAddressObtained = true
               this.isConnected = true
-              console.log('=== wallet store connectWithWalletConnect 成功完成（自动签名） ===')
               return true
             } else {
-              console.log('步骤4: 自动签名验证失败')
-              // 签名验证失败，设置为需要手动签名
-              this.isAddressObtained = true
-              this.isConnected = false
+              // 签名验证失败，不设置连接状态
               return false
             }
           } else {
-            console.log('步骤3: 设置为需要手动签名验证')
-            // 设置为需要手动签名验证
+            console.log('步骤3: 不自动签名，等待用户手动操作')
             this.isAddressObtained = true
-            this.isConnected = false
-            
-            console.log('设置的信息:', {
-              address: this.address,
-              walletType: this.walletType,
-              chainId: this.chainId,
-              isAddressObtained: this.isAddressObtained,
-              isConnected: this.isConnected
-            })
-            
-            console.log('=== wallet store connectWithWalletConnect 成功完成（需要手动签名） ===')
-            console.log('WalletConnect连接成功，请点击"签名验证"按钮完成身份验证')
             return true
           }
         }
-        console.log('步骤1失败: web3Service.connect返回false')
         return false
       } catch (error) {
-        console.log('=== wallet store connectWithWalletConnect 出现错误 ===')
-        console.log('错误对象:', error)
-        console.log('错误类型:', typeof error)
-        console.log('错误构造函数:', error.constructor.name)
-        
         console.error('WalletConnect连接失败:', error)
-        if (config.app.isDevMode) {
+        if (config.app && config.app.isDevMode) {
           this.error = error.message
         }
         return false
       }
     },
 
-    // 专门用于MetaMask深链接连接
-    async connectWithMetaMaskDeepLink() {
-      console.log('使用MetaMask深链接连接...')
-      return await this.connectWallet('metamask_deeplink')
-    },
-
-    // 专门进行签名验证（不重新连接钱包）
-    async signMessageOnly() {
-      if (!this.address) {
-        throw new Error('没有钱包地址，请先连接钱包')
-      }
-      
-      try {
-        console.log('开始签名验证...')
-        const signResult = await this.getNonceAndSign(this.address)
-        if (signResult) {
-          this.isAddressObtained = true
-          this.isConnected = true
-          return true
-        } else {
-          return false
-        }
-      } catch (error) {
-        console.error('签名验证失败:', error)
-        if (config.app.isDevMode) {
-          this.error = error.message
-        }
-        return false
-      }
-    },
-
+    // 获取nonce并请求签名
     async getNonceAndSign(address) {
       try {
         console.log('获取nonce并请求签名...')
         
-        // 使用配置文件获取API地址
-        const apiBase = config.getApiBase()
-        console.log('当前页面URL:', window.location.href)
-        console.log('使用API地址:', apiBase)
-        
-        // 获取nonce
-        const nonceResponse = await axios.post(`/api/v1/wallet/connect`, {
-          address: address
-        })
+        // 使用新的API服务
+        const nonceResult = await apiService.connectWallet(address)
 
-        if (!nonceResponse.data.success) {
-          throw new Error(nonceResponse.data.message || '获取nonce失败')
+        if (!nonceResult.success) {
+          throw new Error(nonceResult.error || '获取nonce失败')
         }
 
-        this.nonce = nonceResponse.data.nonce
+        this.nonce = nonceResult.data.nonce
         console.log('获取到nonce:', this.nonce)
 
         // 构造签名消息
-        const message = `连接Beast Royale游戏\n\n点击签名以验证您的身份。\n\nNonce: ${this.nonce}`
+        const message = `连接Beast Royale游戏
+
+点击签名以验证您的身份。
+
+Nonce: ${this.nonce}`
+        
+        console.log('=== 前端签名消息调试 ===')
+        console.log('消息内容:', message)
+        console.log('消息长度:', message.length)
+        console.log('消息字符:', Array.from(message).map(c => c.charCodeAt(0)))
+        console.log('=== 前端签名消息调试结束 ===')
         
         // 使用Web3Service签名（会自动处理不同的钱包类型）
         const signatureResult = await web3Service.signMessage(message)
         console.log('签名成功:', signatureResult)
 
         // 验证签名
-        const verifyResponse = await axios.post(`/api/v1/wallet/verify`, {
-          address: address,
-          signature: signatureResult.signature,
-          message: message
-        })
+        const verifyResult = await apiService.verifySignature(address, signatureResult.signature, this.nonce)
 
-        if (!verifyResponse.data.success) {
-          throw new Error(verifyResponse.data.message || '签名验证失败')
+        if (!verifyResult.success) {
+          throw new Error(verifyResult.error || '签名验证失败')
         }
 
-        this.token = verifyResponse.data.token
+        this.token = verifyResult.data.token
         this.isConnected = true
         this.error = null
         
@@ -324,7 +269,7 @@ export const useWalletStore = defineStore('wallet', {
 
       } catch (error) {
         console.error('获取nonce或签名失败:', error)
-        if (config.app.isDevMode) {
+        if (config.app && config.app.isDevMode) {
           this.error = error.message
         }
         return false
@@ -348,7 +293,7 @@ export const useWalletStore = defineStore('wallet', {
         console.log('钱包已断开连接')
       } catch (error) {
         console.error('断开连接失败:', error)
-        if (config.app.isDevMode) {
+        if (config.app && config.app.isDevMode) {
           this.error = error.message
         }
       }
@@ -409,14 +354,14 @@ export const useWalletStore = defineStore('wallet', {
               console.log('检测到钱包已连接，等待用户手动进行连接和签名验证')
               return true
             } else {
-              if (config.app.isDevMode) {
+              if (config.app && config.app.isDevMode) {
                 this.error = '未检测到连接的钱包账户，请确保已在钱包中连接此网站'
               }
               return false
             }
           } catch (error) {
             console.error('检查连接状态失败:', error)
-            if (config.app.isDevMode) {
+            if (config.app && config.app.isDevMode) {
               this.error = `检查连接状态失败: ${error.message}`
             }
             return false
@@ -429,7 +374,7 @@ export const useWalletStore = defineStore('wallet', {
             return false
           } else {
             // 移动端MetaMask内置浏览器但没有ethereum对象的情况
-            if (config.app.isDevMode) {
+            if (config.app && config.app.isDevMode) {
               this.error = 'MetaMask内置浏览器中未检测到钱包，请确保MetaMask已正确安装'
             }
             return false
@@ -437,7 +382,7 @@ export const useWalletStore = defineStore('wallet', {
         }
       } catch (error) {
         console.error('手动检查连接失败:', error)
-        if (config.app.isDevMode) {
+        if (config.app && config.app.isDevMode) {
           this.error = error.message
         }
         return false
@@ -478,6 +423,35 @@ export const useWalletStore = defineStore('wallet', {
         'mobile': 'Mobile Wallet'
       }
       return types[walletType] || walletType || 'Unknown'
+    },
+
+    // 检查后端session状态并自动恢复登录状态
+    async checkSessionStatus() {
+      try {
+        console.log('检查后端session状态...')
+        const result = await apiService.getUserProfile()
+        if (result.success) {
+          // 后端session有效，自动恢复登录状态
+          this.address = result.data.address
+          this.isConnected = true
+          this.isAddressObtained = true
+          this.error = null
+          console.log('后端session有效，已自动恢复登录状态:', this.address)
+          return true
+        } else {
+          // 后端session无效
+          this.isConnected = false
+          this.isAddressObtained = false
+          console.log('后端session无效，需要重新登录')
+          return false
+        }
+      } catch (error) {
+        // 网络错误或其他错误
+        this.isConnected = false
+        this.isAddressObtained = false
+        console.error('检查session状态失败:', error)
+        return false
+      }
     }
   }
 }) 

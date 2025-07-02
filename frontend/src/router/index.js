@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 import Game from '../views/Game.vue'
 import GameMain from '../views/GameMain.vue'
 import MetaMaskTest from '../views/MetaMaskTest.vue'
+import Profile from '../views/Profile.vue'
 
 const routes = [
   {
@@ -24,6 +25,11 @@ const routes = [
     path: '/metamask-test',
     name: 'MetaMaskTest',
     component: MetaMaskTest
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: Profile
   }
 ]
 

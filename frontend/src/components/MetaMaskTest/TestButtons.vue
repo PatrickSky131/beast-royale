@@ -61,9 +61,9 @@
 
 <script>
 import { computed, ref } from 'vue'
-import axios from 'axios'
-import web3Service from '@/services/Web3Service'
-import config from '@/config/index.js'
+import web3Service from '../../services/Web3Service.js'
+import apiService from '../../services/ApiService.js'
+import config from '../../config/index.js'
 
 export default {
   name: 'TestButtons',
@@ -211,12 +211,8 @@ export default {
       emit('update:activeButton', 'fullFlow')
       emit('log', '开始完整流程测试...', 'info')
       
-      if (!web3Service.isConnected) {
-        showResult('fullFlow', '❌ 请先连接钱包', 'error')
-        return
-      }
-      
       try {
+        // 检查连接状态
         const status = web3Service.getConnectionStatus()
         const address = status.account
         
@@ -226,16 +222,14 @@ export default {
         
         // 1. 获取nonce
         emit('log', '步骤1: 获取nonce...', 'info')
-        const nonceResponse = await axios.post(`/api/v1/wallet/connect`, {
-          address: address
-        })
+        const nonceResult = await apiService.connectWallet(address)
         
-        if (!nonceResponse.data.success) {
-          showResult('fullFlow', `❌ 获取nonce失败: ${nonceResponse.data.message}`, 'error')
+        if (!nonceResult.success) {
+          showResult('fullFlow', `❌ 获取nonce失败: ${nonceResult.error}`, 'error')
           return
         }
         
-        const nonce = nonceResponse.data.nonce
+        const nonce = nonceResult.data.nonce
         emit('log', `获取到nonce: ${nonce}`, 'success')
         
         // 2. 创建签名消息
@@ -250,24 +244,20 @@ export default {
         
         // 4. 验证签名
         emit('log', '步骤3: 验证签名...', 'info')
-        const verifyResponse = await axios.post(`/api/v1/wallet/verify`, {
-          address: address,
-          signature: signatureResult.signature,
-          message: message
-        })
+        const verifyResult = await apiService.verifySignature(address, signatureResult.signature, message)
         
-        if (verifyResponse.data.success) {
-          emit('log', `验证成功，token: ${verifyResponse.data.token}`, 'success')
+        if (verifyResult.success) {
+          emit('log', `验证成功，token: ${verifyResult.data.token}`, 'success')
           showResult('fullFlow', 
             `✅ 完整流程测试成功！<br>
             地址: ${address}<br>
             Nonce: ${nonce}<br>
             签名: ${signatureResult.signature.slice(0, 20)}...<br>
-            Token: ${verifyResponse.data.token}`, 
+            Token: ${verifyResult.data.token}`, 
             'success'
           )
         } else {
-          showResult('fullFlow', `❌ 验证失败: ${verifyResponse.data.message}`, 'error')
+          showResult('fullFlow', `❌ 验证失败: ${verifyResult.error}`, 'error')
         }
         
       } catch (error) {

@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -32,15 +33,14 @@ func Init() error {
 		return err
 	}
 
-	// 初始化不同类型的日志记录器
-	InfoLogger = log.New(logFile, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	ErrorLogger = log.New(logFile, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
-	DebugLogger = log.New(logFile, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
+	// 创建多输出writer（同时输出到文件和控制台）
+	multiWriter := io.MultiWriter(logFile, os.Stdout)
+	errorWriter := io.MultiWriter(logFile, os.Stderr)
 
-	// 同时输出到控制台和文件
-	InfoLogger.SetOutput(os.Stdout)
-	ErrorLogger.SetOutput(os.Stderr)
-	DebugLogger.SetOutput(os.Stdout)
+	// 初始化不同类型的日志记录器
+	InfoLogger = log.New(multiWriter, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	ErrorLogger = log.New(errorWriter, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	DebugLogger = log.New(multiWriter, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
 
 	return nil
 }

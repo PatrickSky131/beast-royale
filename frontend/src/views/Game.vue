@@ -173,7 +173,7 @@
 
 <script>
 import { useWalletStore } from '@/stores/wallet'
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -529,17 +529,17 @@ export default {
 }
 
 .btn-small {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  background: #dc3545;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #007bff;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
 .btn-small:hover {
-  background: #c82333;
+  background: #0056b3;
 }
 
 /* 移动端样式优化 */

@@ -17,8 +17,24 @@
 </template>
 
 <script>
+import { onMounted } from 'vue'
+import { useWalletStore } from './stores/wallet'
+
 export default {
-  name: 'App'
+  name: 'App',
+  setup() {
+    const walletStore = useWalletStore()
+
+    // 应用启动时自动检查登录状态
+    onMounted(async () => {
+      try {
+        console.log('应用启动，检查登录状态...')
+        await walletStore.checkSessionStatus()
+      } catch (error) {
+        console.error('应用启动时检查登录状态失败:', error)
+      }
+    })
+  }
 }
 </script>
 

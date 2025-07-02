@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 5173,
     host: true,
     allowedHosts: [
       'localhost',
@@ -25,7 +25,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/rpc': {
+      '/api/v1': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,

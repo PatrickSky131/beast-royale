@@ -148,14 +148,25 @@
 </template>
 
 <script>
-import { useWalletStore } from '@/stores/wallet'
+import { useWalletStore } from '../stores/wallet'
 import { useRouter } from 'vue-router'
+import { onMounted } from 'vue'
 
 export default {
   name: 'GameMain',
   setup() {
     const walletStore = useWalletStore()
     const router = useRouter()
+
+    // 页面加载时自动检查登录状态
+    onMounted(async () => {
+      try {
+        // 检查后端session状态并自动恢复登录状态
+        await walletStore.checkSessionStatus()
+      } catch (error) {
+        console.error('检查登录状态失败:', error)
+      }
+    })
 
     const getWalletTypeName = (type) => {
       const types = {
@@ -208,7 +219,7 @@ export default {
     }
 
     const goProfile = () => {
-      alert('个人资料功能正在开发中...')
+      router.push('/profile')
     }
 
     const goSettings = () => {

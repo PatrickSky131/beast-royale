@@ -60,7 +60,7 @@ lint:
 .PHONY: dev
 dev:
 	@echo "Running in development mode..."
-	@go run main.go
+	@go run main.go run --config config.yaml
 
 # 帮助信息
 .PHONY: help

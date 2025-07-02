@@ -3,7 +3,7 @@ package db
 import (
 	"log"
 
-	"beast-royale-backend/internal/db/models"
+	"beast-royale-backend/internal/dao"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -21,8 +21,7 @@ func Init() error {
 
 	// 自动迁移数据库表
 	err = DB.AutoMigrate(
-		&models.User{},
-		&models.Wallet{},
+		&dao.UserProfile{},
 	)
 	if err != nil {
 		return err
@@ -35,4 +34,11 @@ func Init() error {
 // GetDB 获取数据库实例
 func GetDB() *gorm.DB {
 	return DB
+}
+
+// Migrate 用于命令行迁移表结构
+func Migrate() error {
+	return DB.AutoMigrate(
+		&dao.UserProfile{},
+	)
 }
