@@ -60,21 +60,16 @@
             <template v-else>
               <!-- WalletConnect连接 -->
               <button 
-                class="btn wallet-btn primary" 
+                class="btn wallet-btn primary mobile-walletconnect" 
                 @click="connectWallet('walletconnect')"
                 :disabled="walletStore.isConnecting"
+                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100px; padding: 20px 15px; text-align: center;"
               >
-                <span class="wallet-icon">🔗</span>
-                <span class="wallet-name">WalletConnect连接</span>
-                <span class="wallet-desc">扫描二维码连接</span>
+                <span style="display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 600;">
+                  <span style="font-size: 1.5rem; margin-right: 8px;">🔗</span>
+                  <span>WalletConnect连接</span>
+                </span>
               </button>
-              
-              <!-- 提示信息 -->
-              <div class="mobile-notice-card">
-                <div class="notice-icon">📱</div>
-                <h4>外部浏览器连接</h4>
-                <p>在外部浏览器中请使用WalletConnect连接。如需使用MetaMask，请在MetaMask内置浏览器中打开此页面。</p>
-              </div>
             </template>
           </div>
         </div>
@@ -335,6 +330,7 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 20px;
   border: 2px solid #e1e5e9;
   border-radius: 12px;
@@ -343,6 +339,7 @@ export default {
   transition: all 0.3s ease;
   text-align: center;
   min-height: 120px;
+  position: relative;
 }
 
 .wallet-btn:hover {
@@ -371,17 +368,21 @@ export default {
 .wallet-icon {
   font-size: 2rem;
   margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .wallet-name {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 4px;
+  flex-shrink: 0;
 }
 
 .wallet-desc {
   font-size: 0.9rem;
   opacity: 0.7;
+  flex-shrink: 0;
+  min-height: 1.2em;
 }
 
 /* 自动连接区域 */
@@ -643,6 +644,50 @@ export default {
   
   .game-start h2 {
     font-size: 2rem;
+  }
+  
+  .wallet-btn {
+    min-height: 100px;
+    padding: 15px;
+  }
+  
+  .wallet-icon {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+  }
+  
+  .wallet-name {
+    font-size: 1rem;
+    margin-bottom: 2px;
+  }
+  
+  .wallet-desc {
+    font-size: 0.8rem;
+  }
+  
+  /* 移动端外部浏览器WalletConnect按钮特殊样式 */
+  .mobile-walletconnect {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100px !important;
+    padding: 20px 15px !important;
+    text-align: center !important;
+  }
+  
+  .mobile-walletconnect .wallet-icon {
+    font-size: 2rem !important;
+    margin-bottom: 10px !important;
+    display: block !important;
+  }
+  
+  .mobile-walletconnect .wallet-name {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    text-align: center !important;
+    display: block !important;
   }
 }
 

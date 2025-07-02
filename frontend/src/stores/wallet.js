@@ -317,6 +317,18 @@ export const useWalletStore = defineStore('wallet', {
       console.log('手动检查连接状态...')
       
       try {
+        // 检查是否为移动端外部浏览器
+        const isMobile = this.isMobileDevice
+        const isInMetaMaskBrowser = this.isInMetaMaskBrowser
+        const isExternalBrowser = isMobile && !isInMetaMaskBrowser
+        
+        // 如果是移动端外部浏览器，不进行钱包检测，直接返回
+        if (isExternalBrowser) {
+          console.log('移动端外部浏览器，跳过钱包检测')
+          this.error = null
+          return true
+        }
+        
         // 检查是否有 ethereum 对象
         if (typeof window.ethereum !== 'undefined') {
           try {
@@ -340,7 +352,13 @@ export const useWalletStore = defineStore('wallet', {
             return false
           }
         } else {
-          this.error = '未检测到钱包，请确保已安装兼容的钱包插件'
+          // 只有在桌面端才显示"未检测到钱包"的错误
+          if (!isMobile) {
+            this.error = '未检测到钱包，请确保已安装兼容的钱包插件'
+          } else {
+            // 移动端MetaMask内置浏览器但没有ethereum对象的情况
+            this.error = 'MetaMask内置浏览器中未检测到钱包，请确保MetaMask已正确安装'
+          }
           return false
         }
       } catch (error) {
