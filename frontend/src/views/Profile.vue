@@ -221,7 +221,12 @@ export default {
           profile.value = result.data
           resetForm()
         } else {
-          error.value = result.error || '获取个人档案失败'
+          // 检查是否是认证错误
+          if (result.retCode === 401) {
+            error.value = '请先连接钱包'
+          } else {
+            error.value = result.error || '获取个人档案失败'
+          }
         }
       } catch (err) {
         error.value = '网络错误，请稍后重试'

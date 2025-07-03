@@ -91,9 +91,12 @@ func handleCookieAuth(c *gin.Context, params *map[string]interface{}, cookieName
 		return false
 	}
 
+	address := addr.(string)
+
 	// 将session中的地址写入params，替代请求中的Address
-	(*params)["Address"] = addr.(string)
-	logger.Info("Cookie auth successful for address: %s", addr.(string))
+	(*params)["Address"] = address
+	logger.Info("Cookie auth successful for address: %s", address)
+
 	return true
 }
 
