@@ -14,6 +14,20 @@ backend/vendor/
 *.dylib
 *.test
 *.out
+# Go binary files
+beast-royale-backend
+backend/beast-royale-backend
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+backend/beast_royale.db
+
+# Build outputs
+frontend/dist/
+backend/bin/
+dist/
 
 # IDE
 .vscode/
