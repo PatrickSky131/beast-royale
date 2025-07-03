@@ -1,7 +1,7 @@
 # Makefile for Beast Royale Backend
 
 # 二进制文件名称
-BINARY_NAME=beast-royale-server
+BINARY_NAME=beast-royale-backend
 BINARY_DIR=bin
 
 # 编译目标平台
