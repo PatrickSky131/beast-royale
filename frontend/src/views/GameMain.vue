@@ -153,6 +153,18 @@ export default {
     // 页面加载时自动检查登录状态和获取用户数据
     onMounted(async () => {
       try {
+        // 检查是否为移动端外部浏览器
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        const isInMetaMaskBrowser = /MetaMask/i.test(navigator.userAgent)
+        const isExternalBrowser = isMobile && !isInMetaMaskBrowser
+        
+        // 如果是移动端外部浏览器，直接跳转到登录页面
+        if (isExternalBrowser) {
+          console.log('移动端外部浏览器，跳过session检查，直接跳转到登录页面')
+          router.push('/login')
+          return
+        }
+        
         // 检查后端session状态并自动恢复登录状态
         const hasSession = await walletStore.checkSessionStatus()
         

@@ -317,6 +317,18 @@ export default {
       error.value = ''
       
       try {
+        // 检查是否为移动端外部浏览器
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        const isInMetaMaskBrowser = /MetaMask/i.test(navigator.userAgent)
+        const isExternalBrowser = isMobile && !isInMetaMaskBrowser
+        
+        // 如果是移动端外部浏览器，跳过session检查
+        if (isExternalBrowser) {
+          console.log('移动端外部浏览器，跳过session检查')
+          error.value = '请先连接钱包'
+          return
+        }
+        
         // 检查后端session状态并自动恢复登录状态
         const isLoggedIn = await walletStore.checkSessionStatus()
         if (isLoggedIn) {

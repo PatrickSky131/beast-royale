@@ -4,6 +4,7 @@ import apiService from '../services/ApiService.js'
 import web3Service from '../services/Web3Service.js'
 import walletConnectService from '../services/WalletConnectService.js'
 import config from '../config/index.js'
+import { getActivePinia } from 'pinia'
 
 export const useWalletStore = defineStore('wallet', {
   state: () => ({
@@ -225,6 +226,8 @@ export const useWalletStore = defineStore('wallet', {
     async getNonceAndSign(address) {
       try {
         console.log('获取nonce并请求签名...')
+        console.log('钱包类型:', this.walletType)
+        console.log('地址:', address)
         
         // 使用新的API服务
         const nonceResult = await apiService.connectWallet(address)
@@ -250,10 +253,12 @@ Nonce: ${this.nonce}`
         console.log('=== 前端签名消息调试结束 ===')
         
         // 使用Web3Service签名（会自动处理不同的钱包类型）
+        console.log('开始调用web3Service.signMessage...')
         const signatureResult = await web3Service.signMessage(message)
         console.log('签名成功:', signatureResult)
 
         // 验证签名
+        console.log('开始验证签名...')
         const verifyResult = await apiService.verifySignature(address, signatureResult.signature, this.nonce)
 
         if (!verifyResult.success) {
@@ -269,6 +274,61 @@ Nonce: ${this.nonce}`
 
       } catch (error) {
         console.error('获取nonce或签名失败:', error)
+        
+        // 检查是否是WalletConnect会话错误
+        const errorMessage = error.message || error.toString()
+        if (errorMessage.includes('session topic doesn\'t exist') || 
+            errorMessage.includes('No matching key') ||
+            errorMessage.includes('session expired')) {
+          
+          console.log('检测到WalletConnect会话错误，清理状态')
+          try {
+            await walletConnectService.disconnect()
+          } catch (e) {
+            console.log('清理WalletConnect状态失败:', e)
+          }
+          
+          // 清理walletStore状态
+          this.address = null
+          this.isConnected = false
+          this.isAddressObtained = false
+          this.walletType = null
+          this.chainId = null
+          
+          if (config.app && config.app.isDevMode) {
+            this.error = 'WalletConnect会话已过期，请重新连接'
+          }
+          return false
+        }
+        
+        if (config.app && config.app.isDevMode) {
+          this.error = error.message
+        }
+        return false
+      }
+    },
+
+    // 单独进行签名验证（当已经获取到地址时）
+    async signMessage() {
+      try {
+        console.log('开始签名验证...')
+        
+        if (!this.address) {
+          throw new Error('请先连接钱包获取地址')
+        }
+
+        // 使用getNonceAndSign方法进行完整的签名验证流程
+        const result = await this.getNonceAndSign(this.address)
+        
+        if (result) {
+          console.log('签名验证成功')
+          return true
+        } else {
+          throw new Error('签名验证失败')
+        }
+
+      } catch (error) {
+        console.error('签名验证失败:', error)
         if (config.app && config.app.isDevMode) {
           this.error = error.message
         }
@@ -333,11 +393,60 @@ Nonce: ${this.nonce}`
         const isInMetaMaskBrowser = this.isInMetaMaskBrowser
         const isExternalBrowser = isMobile && !isInMetaMaskBrowser
         
-        // 如果是移动端外部浏览器，不进行钱包检测，直接返回
+        // 如果是移动端外部浏览器，检查WalletConnect连接状态
         if (isExternalBrowser) {
-          console.log('移动端外部浏览器，跳过钱包检测')
-          this.error = null
-          return true
+          console.log('移动端外部浏览器，检查WalletConnect连接状态')
+          
+          // 检查WalletConnect连接状态
+          const walletConnectStatus = walletConnectService.getConnectionStatus()
+          console.log('WalletConnect状态:', walletConnectStatus)
+          
+          // 实用检测：只要有account就认为连接成功，不依赖isConnected状态
+          // 因为移动端外部浏览器中，provider.connected状态同步有延迟
+          if (walletConnectStatus.account) {
+            console.log('检测到WalletConnect已连接:', walletConnectStatus.account)
+            this.address = walletConnectStatus.account
+            this.walletType = 'walletconnect'
+            this.chainId = walletConnectStatus.chainId
+            this.error = null
+            
+            // 检查是否自动进行签名验证
+            const autoSign = config.wallet.autoSignAfterConnect
+            console.log('自动签名配置:', autoSign)
+            
+            if (autoSign) {
+              console.log('检测到WalletConnect连接，自动进行签名验证')
+              // 自动进行签名验证
+              const signResult = await this.getNonceAndSign(this.address)
+              console.log('自动签名验证结果:', signResult)
+              
+              if (signResult) {
+                this.isAddressObtained = true
+                this.isConnected = true
+                console.log('WalletConnect连接和签名验证完成')
+                return true
+              } else {
+                // 签名验证失败，只设置地址获取状态
+                this.isAddressObtained = true
+                console.log('WalletConnect连接成功，但签名验证失败，等待用户手动重试')
+                return true
+              }
+            } else {
+              // 不自动签名，只设置地址获取状态
+              this.isAddressObtained = true
+              console.log('WalletConnect连接状态已恢复，等待用户手动进行签名验证')
+              return true
+            }
+          } else {
+            console.log('WalletConnect未连接，状态详情:', {
+              isConnected: walletConnectStatus.isConnected,
+              account: walletConnectStatus.account,
+              chainId: walletConnectStatus.chainId,
+              configValid: walletConnectStatus.configValid
+            })
+            this.error = null
+            return false
+          }
         }
         
         // 检查是否有 ethereum 对象
@@ -452,6 +561,18 @@ Nonce: ${this.nonce}`
         console.error('检查session状态失败:', error)
         return false
       }
+    },
+
+    // 清除错误信息
+    clearError() {
+      this.error = null
     }
   }
-}) 
+})
+
+// 新增：全局暴露walletStore实例
+let walletStore = null
+if (getActivePinia()) {
+  walletStore = useWalletStore()
+}
+export { walletStore } 

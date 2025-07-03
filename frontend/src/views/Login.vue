@@ -180,12 +180,53 @@ export default {
     const availableWallets = ref([])
 
     // 初始化时检测可用钱包
-    onMounted(() => {
+    onMounted(async () => {
       availableWallets.value = walletStore.detectWallets()
       console.log('可用钱包:', availableWallets.value)
       
-      // 初始检查连接状态
-      walletStore.manualCheckConnection()
+      // 检查是否为移动端外部浏览器
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      const isInMetaMaskBrowser = /MetaMask/i.test(navigator.userAgent)
+      const isExternalBrowser = isMobile && !isInMetaMaskBrowser
+      
+      console.log('设备检测结果:', {
+        isMobile,
+        isInMetaMaskBrowser,
+        isExternalBrowser
+      })
+      
+      // 自动检查机制：解决移动端外部浏览器WalletConnect连接状态恢复问题
+      if (isExternalBrowser) {
+        console.log('移动端外部浏览器，启动自动检查WalletConnect连接状态')
+        
+        // 多次检查机制，确保连接状态完全恢复
+        // 原因：用户从MetaMask应用返回浏览器时，WalletConnect连接状态可能延迟恢复
+        const checkConnection = async (attempt = 1, maxAttempts = 5) => {
+          console.log(`第${attempt}次检查WalletConnect连接状态...`)
+          
+          const result = await walletStore.manualCheckConnection()
+          
+          if (result && walletStore.isConnected) {
+            console.log('✅ WalletConnect连接状态已恢复并完成签名验证')
+            return
+          } else if (attempt < maxAttempts) {
+            // 如果还没成功且未达到最大尝试次数，继续延迟检查
+            const delay = attempt * 1000 // 递增延迟：1秒、2秒、3秒...
+            console.log(`⏳ ${delay}ms后进行第${attempt + 1}次检查...`)
+            setTimeout(() => checkConnection(attempt + 1, maxAttempts), delay)
+          } else {
+            console.log('❌ 达到最大检查次数，停止自动检查')
+          }
+        }
+        
+        // 开始第一次检查（延迟2秒，给用户足够时间从MetaMask返回）
+        console.log('⏰ 2秒后开始自动检查WalletConnect连接状态...')
+        setTimeout(() => checkConnection(1, 5), 2000)
+      } else {
+        // 非移动端外部浏览器，立即检查一次
+        console.log('非移动端外部浏览器，执行一次连接状态检查')
+        await walletStore.manualCheckConnection()
+      }
     })
 
     const connectWallet = async (walletType = 'auto') => {
@@ -213,6 +254,11 @@ export default {
     const enterGame = () => {
       if (walletStore.isConnected && walletStore.token) {
         router.push('/game-main')
+      } else {
+        console.log('无法进入游戏，状态:', {
+          isConnected: walletStore.isConnected,
+          token: walletStore.token
+        })
       }
     }
 

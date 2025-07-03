@@ -7,23 +7,15 @@
 </template>
 
 <script>
-import { onMounted } from 'vue'
 import { useWalletStore } from './stores/wallet'
 
 export default {
   name: 'App',
   setup() {
     const walletStore = useWalletStore()
-
-    // 应用启动时自动检查登录状态
-    onMounted(async () => {
-      try {
-        console.log('应用启动，检查登录状态...')
-        await walletStore.checkSessionStatus()
-      } catch (error) {
-        console.error('应用启动时检查登录状态失败:', error)
-      }
-    })
+    
+    // 移除自动检查session的逻辑，让各个页面自己处理
+    // 这样可以避免在移动设备上从MetaMask返回时触发不必要的API调用
   }
 }
 </script>
