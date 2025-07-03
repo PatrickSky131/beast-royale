@@ -216,6 +216,22 @@ class ApiService {
     return await this.callApi('GetUserProfile', {})
   }
 
+  // 检查session状态
+  async checkSession() {
+    try {
+      // 使用GetUserProfile来检查session状态
+      // 如果session有效，会返回用户数据；如果无效，会返回401错误
+      const result = await this.callApi('GetUserProfile', {})
+      return result
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: 'Session检查失败'
+      }
+    }
+  }
+
   // 更新用户档案
   async updateUserProfile(profileData) {
     return await this.callApi('UpdateUserProfile', profileData)

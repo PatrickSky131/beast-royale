@@ -5,6 +5,7 @@ import (
 	"beast-royale-backend/internal/logger"
 	"beast-royale-backend/internal/wallet"
 	"fmt"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -87,6 +88,9 @@ func (task *VerifySignatureTask) Run(c *gin.Context) (Response, error) {
 		return task.Response, nil
 	}
 
+	// 将地址转换为小写
+	lowerAddress := strings.ToLower(task.Request.Address)
+
 	// 从Redis验证nonce
 	session := sessions.Default(c)
 	key := MakeAddrNonceKey(task.Request.Address)
@@ -129,27 +133,27 @@ func (task *VerifySignatureTask) Run(c *gin.Context) (Response, error) {
 	session.Save()
 
 	// 设置Redis session用于后续认证
-	// 使用gin-sessions的标准方式，将地址存储在session中
-	logger.Info("准备保存session: 地址=%s", task.Request.Address)
-	session.Set("address", task.Request.Address)
+	// 使用gin-sessions的标准方式，将小写地址存储在session中
+	logger.Info("准备保存session: 地址=%s", lowerAddress)
+	session.Set("address", lowerAddress)
 	err = session.Save()
 	if err != nil {
 		logger.Error("保存session失败: %v", err)
 	} else {
-		logger.Info("保存session成功: 地址=%s", task.Request.Address)
+		logger.Info("保存session成功: 地址=%s", lowerAddress)
 	}
 
-	// 登录成功后，确保用户档案存在
-	err = db.EnsureUserProfileExists(task.Request.Address)
+	// 登录成功后，确保用户档案存在（使用小写地址）
+	err = db.EnsureUserProfileExists(lowerAddress)
 	if err != nil {
 		logger.Error("确保用户档案存在失败: %v", err)
 		// 不返回错误，因为登录已经成功，档案创建失败不应该影响登录流程
 	} else {
-		logger.Info("用户档案创建/确认成功: %s", task.Request.Address)
+		logger.Info("用户档案创建/确认成功: %s", lowerAddress)
 	}
 
-	// 生成token
-	token := "valid_token_" + task.Request.Address
+	// 生成token（使用小写地址）
+	token := "valid_token_" + lowerAddress
 	task.Response.Token = token
 	task.Response.SetMessage("Signature verified successfully")
 	return task.Response, nil

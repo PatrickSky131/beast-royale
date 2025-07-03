@@ -147,6 +147,13 @@
           <div class="form-actions">
             <button 
               type="button" 
+              @click="goToGame" 
+              class="btn btn-game"
+            >
+              🎮 返回游戏大厅
+            </button>
+            <button 
+              type="button" 
               @click="resetForm" 
               class="btn btn-secondary"
               :disabled="saving"
@@ -171,11 +178,13 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useWalletStore } from '../stores/wallet.js'
 import apiService from '../services/ApiService.js'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'Profile',
   setup() {
     const walletStore = useWalletStore()
+    const router = useRouter()
     
     const loading = ref(false)
     const saving = ref(false)
@@ -298,6 +307,10 @@ export default {
       return new Date(dateStr).toLocaleString('zh-CN')
     }
 
+    const goToGame = () => {
+      router.push('/game-main')
+    }
+
     // 生命周期
     onMounted(async () => {
       loading.value = true
@@ -332,7 +345,8 @@ export default {
       loadProfile,
       resetForm,
       saveProfile,
-      formatDate
+      formatDate,
+      goToGame
     }
   }
 }
@@ -554,6 +568,16 @@ h1 {
 
 .btn-secondary:hover:not(:disabled) {
   background: #5a6268;
+}
+
+.btn-game {
+  background: #28a745;
+  color: white;
+}
+
+.btn-game:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-2px);
 }
 
 @media (max-width: 768px) {
