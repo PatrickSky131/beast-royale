@@ -429,7 +429,7 @@ Nonce: ${this.nonce}`
     async checkSessionStatus() {
       try {
         console.log('检查后端session状态...')
-        const result = await apiService.checkSession()
+        const result = await apiService.getUserProfile()
         if (result.success) {
           // 后端session有效，自动恢复登录状态
           this.address = result.data.address
