@@ -201,7 +201,7 @@ export default {
         
         // 多次检查机制，确保连接状态完全恢复
         // 原因：用户从MetaMask应用返回浏览器时，WalletConnect连接状态可能延迟恢复
-        const checkConnection = async (attempt = 1, maxAttempts = 5) => {
+        const checkConnection = async (attempt = 1, maxAttempts = 50) => {
           console.log(`第${attempt}次检查WalletConnect连接状态...`)
           
           const result = await walletStore.manualCheckConnection()
@@ -211,7 +211,7 @@ export default {
             return
           } else if (attempt < maxAttempts) {
             // 如果还没成功且未达到最大尝试次数，继续延迟检查
-            const delay = attempt * 1000 // 递增延迟：1秒、2秒、3秒...
+            const delay = 2000 // 递增延迟：1秒、2秒、3秒...
             console.log(`⏳ ${delay}ms后进行第${attempt + 1}次检查...`)
             setTimeout(() => checkConnection(attempt + 1, maxAttempts), delay)
           } else {
