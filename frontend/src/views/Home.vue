@@ -60,19 +60,8 @@ export default {
     const walletStore = useWalletStore()
     const router = useRouter()
 
-    const enterGame = async () => {
+    const checkAndNavigateToGame = async () => {
       try {
-        // 检查是否为移动端外部浏览器
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        const isInMetaMaskBrowser = /MetaMask/i.test(navigator.userAgent)
-        const isExternalBrowser = isMobile && !isInMetaMaskBrowser
-        
-        // 如果是移动端外部浏览器，直接跳转到登录页面
-        if (isExternalBrowser) {
-          console.log('移动端外部浏览器，跳过session检查，直接跳转到登录页面')
-          router.push('/login')
-          return
-        }
         
         // 检查是否有有效的session
         const hasSession = await walletStore.checkSessionStatus()
@@ -93,7 +82,7 @@ export default {
 
     return {
       isDevMode: config.app.isDevMode,
-      enterGame,
+      enterGame: checkAndNavigateToGame,
       learnMore() {
         alert('更多功能正在开发中...')
       }

@@ -148,17 +148,19 @@ class ApiService {
       const response = await this.apiClient.post('/api', requestData)
       
       // 适配新的Action-based API响应格式
-      if (response.data.RetCode === 0) {
+      if (response.data.RetCode === 0 || response.data.RetCode === 206) {
         return {
           success: true,
           data: response.data,
           message: response.data.Message,
+          retCode: response.data.RetCode, // 添加返回码字段
         }
       } else {
         return {
           success: false,
           error: response.data.Error || response.data.Message,
           message: response.data.Message,
+          retCode: response.data.RetCode, // 添加返回码字段
         }
       }
     } catch (error) {

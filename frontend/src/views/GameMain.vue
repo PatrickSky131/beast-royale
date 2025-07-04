@@ -23,7 +23,7 @@
         <div class="card-content">
           <div class="info-row">
             <span class="label">地址:</span>
-            <span class="value">{{ userProfile.address || walletStore.address || '未获取' }}</span>
+            <span class="value">{{ userProfile.address || '未获取' }}</span>
           </div>
           <div class="info-row">
             <span class="label">用户名:</span>
@@ -150,34 +150,14 @@ export default {
     const loading = ref(true)
     const userProfile = ref({})
 
-    // 页面加载时自动检查登录状态和获取用户数据
+    // 页面加载时自动获取用户数据
     onMounted(async () => {
       try {
-        // 检查是否为移动端外部浏览器
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        const isInMetaMaskBrowser = /MetaMask/i.test(navigator.userAgent)
-        const isExternalBrowser = isMobile && !isInMetaMaskBrowser
-        
-        // 如果是移动端外部浏览器，直接跳转到登录页面
-        if (isExternalBrowser) {
-          console.log('移动端外部浏览器，跳过session检查，直接跳转到登录页面')
-          router.push('/login')
-          return
-        }
-        
-        // 检查后端session状态并自动恢复登录状态
-        const hasSession = await walletStore.checkSessionStatus()
-        
-        if (!hasSession) {
-          // 没有session，跳转到登录页面
-          router.push('/login')
-          return
-        }
-
-        // 获取用户档案数据
+        // 直接获取用户档案数据
         await fetchUserProfile()
       } catch (error) {
-        console.error('检查登录状态失败:', error)
+        console.error('获取用户数据失败:', error)
+        // 如果获取用户数据失败，可能是未登录，跳转到登录页面
         router.push('/login')
       } finally {
         loading.value = false
@@ -194,9 +174,11 @@ export default {
           userProfile.value = result.data
         } else {
           console.error('获取用户档案失败:', result.message)
+          throw new Error(result.message || '获取用户档案失败')
         }
       } catch (error) {
         console.error('获取用户档案失败:', error)
+        throw error // 重新抛出错误，让onMounted处理
       }
     }
 

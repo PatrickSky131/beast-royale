@@ -105,7 +105,7 @@
             <button 
               v-if="walletStore.isConnected && walletStore.token"
               class="btn btn-large start-game-btn" 
-              @click="enterGame"
+              @click="startGame"
             >
               🚀 进入游戏
             </button>
@@ -251,7 +251,7 @@ export default {
       }
     }
 
-    const enterGame = () => {
+    const startGame = () => {
       if (walletStore.isConnected && walletStore.token) {
         router.push('/game-main')
       } else {
@@ -275,7 +275,7 @@ export default {
       availableWallets,
       connectWallet,
       signMessageOnly,
-      enterGame,
+      startGame,
       disconnectWallet,
       clearError
     }

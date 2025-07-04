@@ -33,7 +33,9 @@ const config = {
     // 开发者模式
     // true: 显示详细错误信息、调试日志、vConsole等
     // false: 隐藏错误信息，不显示vConsole，只显示用户友好的提示
-    isDevMode: true
+    isDevMode: true,
+    // 用户名更新限制时间（毫秒）- 24小时
+    usernameUpdateInterval: 24 * 60 * 60 * 1000
   },
   
   // 钱包配置
