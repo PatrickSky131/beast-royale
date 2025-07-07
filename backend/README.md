@@ -2,6 +2,58 @@
 
 这是一个基于Go语言的后端服务，使用Gin框架和GORM进行开发，采用RPC风格的API设计。
 
+## 数据库设置
+
+本项目使用MySQL数据库。在运行服务之前，请确保：
+
+### 1. 安装MySQL
+```bash
+# macOS (使用Homebrew)
+brew install mysql
+brew services start mysql
+
+# Ubuntu/Debian
+sudo apt-get install mysql-server
+sudo systemctl start mysql
+
+# CentOS/RHEL
+sudo yum install mysql-server
+sudo systemctl start mysqld
+```
+
+### 2. 设置MySQL密码
+```bash
+# 如果您的MySQL root用户没有密码，可以跳过此步骤
+# 如果需要设置密码，运行：
+mysql_secure_installation
+```
+
+### 3. 创建数据库
+```bash
+# 运行设置脚本
+./setup-mysql.sh
+
+# 或者手动创建（无密码）
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS beast_royale CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 或者手动创建（有密码）
+mysql -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS beast_royale CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+### 4. 配置数据库连接
+数据库配置在 `config.yaml` 文件中：
+```yaml
+database:
+  host: "localhost"
+  port: 3306
+  user: "root"
+  password: ""  # 如果root用户没有密码，设置为空字符串
+  dbname: "beast_royale"
+  charset: "utf8mb4"
+  parse_time: true
+  loc: "Local"
+```
+
 ## 项目结构
 
 ```

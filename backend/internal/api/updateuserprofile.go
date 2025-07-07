@@ -138,21 +138,23 @@ func (task *UpdateUserProfileTask) Run(c *gin.Context) (Response, error) {
 		}
 
 		// 检查是否可以修改用户名（24小时内只能修改一次）
-		if !profile.LastUsernameUpdate.IsZero() {
-			timeSinceLastUpdate := time.Since(profile.LastUsernameUpdate)
+		if profile.LastUsernameUpdate != nil {
+			timeSinceLastUpdate := time.Since(*profile.LastUsernameUpdate)
 			if timeSinceLastUpdate < 24*time.Hour {
 				// 用户名不能更新，但继续更新其他字段
 				logger.Info("用户名 %s 在24小时内不能更新，跳过用户名字段", address)
 			} else {
 				// 可以更新用户名
 				profile.Username = task.Request.Username
-				profile.LastUsernameUpdate = time.Now()
+				now := time.Now()
+				profile.LastUsernameUpdate = &now
 				usernameUpdated = true
 			}
 		} else {
 			// 从未更新过用户名，可以更新
 			profile.Username = task.Request.Username
-			profile.LastUsernameUpdate = time.Now()
+			now := time.Now()
+			profile.LastUsernameUpdate = &now
 			usernameUpdated = true
 		}
 	}
@@ -201,7 +203,7 @@ func (task *UpdateUserProfileTask) Run(c *gin.Context) (Response, error) {
 	task.Response.UpdatedAt = profile.UpdatedAt.Format("2006-01-02 15:04:05")
 
 	// 处理LastUsernameUpdate字段
-	if profile.LastUsernameUpdate.IsZero() {
+	if profile.LastUsernameUpdate == nil {
 		task.Response.LastUsernameUpdate = ""
 	} else {
 		task.Response.LastUsernameUpdate = profile.LastUsernameUpdate.Format("2006-01-02 15:04:05")

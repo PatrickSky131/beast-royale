@@ -39,11 +39,6 @@ bin/logs/*.log
 .env.local
 .env.*.local
 
-# 数据库文件
-*.db
-*.sqlite
-*.sqlite3
-
 # 临时文件
 tmp/
 temp/ 
