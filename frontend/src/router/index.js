@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
-import Game from '../views/Game.vue'
+import Login from '../views/Login.vue'
 import GameMain from '../views/GameMain.vue'
 import MetaMaskTest from '../views/MetaMaskTest.vue'
 import Profile from '../views/Profile.vue'
@@ -12,9 +12,9 @@ const routes = [
     component: Home
   },
   {
-    path: '/game',
-    name: 'Game',
-    component: Game
+    path: '/login',
+    name: 'Login',
+    component: Login
   },
   {
     path: '/game-main',
@@ -30,6 +30,11 @@ const routes = [
     path: '/profile',
     name: 'Profile',
     component: Profile
+  },
+  // 保持向后兼容，将 /game 重定向到 /login
+  {
+    path: '/game',
+    redirect: '/login'
   }
 ]
 

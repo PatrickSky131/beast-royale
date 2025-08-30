@@ -5,28 +5,16 @@
       <p>欢迎来到区块链游戏世界！</p>
     </div>
 
-    <!-- 钱包状态栏 -->
-    <div class="wallet-status-bar">
-      <div class="status-item">
-        <span class="label">钱包状态:</span>
-        <span v-if="walletStore.isConnected" class="value connected">
-          ✅ 已连接 ({{ walletStore.shortAddress }})
-        </span>
-        <span v-else class="value disconnected">
-          ❌ 未连接
-        </span>
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-section">
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <p>正在加载用户数据...</p>
       </div>
-      <div class="status-item">
-        <span class="label">钱包类型:</span>
-        <span class="value">{{ getWalletTypeName(walletStore.walletType) }}</span>
-      </div>
-      <button v-if="walletStore.isConnected" class="btn disconnect-btn" @click="disconnectWallet">
-        断开连接
-      </button>
     </div>
 
     <!-- 游戏功能区域 -->
-    <div class="game-content">
+    <div v-else class="game-content">
       <!-- 玩家信息卡片 -->
       <div class="player-card">
         <div class="card-header">
@@ -35,19 +23,23 @@
         <div class="card-content">
           <div class="info-row">
             <span class="label">地址:</span>
-            <span class="value">{{ walletStore.address || '未连接' }}</span>
+            <span class="value">{{ userProfile.address || '未获取' }}</span>
           </div>
           <div class="info-row">
-            <span class="label">等级:</span>
-            <span class="value">1</span>
+            <span class="label">用户名:</span>
+            <span class="value">{{ userProfile.username || '未设置' }}</span>
           </div>
           <div class="info-row">
-            <span class="label">经验值:</span>
-            <span class="value">0 / 100</span>
+            <span class="label">积分:</span>
+            <span class="value">{{ userProfile.points || 0 }}</span>
           </div>
           <div class="info-row">
-            <span class="label">金币:</span>
-            <span class="value">1000</span>
+            <span class="label">代币:</span>
+            <span class="value">{{ userProfile.tokens || 0 }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">注册时间:</span>
+            <span class="value">{{ formatDate(userProfile.created_at) }}</span>
           </div>
         </div>
       </div>
@@ -119,7 +111,7 @@
           </div>
           <div class="activity-item">
             <span class="activity-time">1分钟前</span>
-            <span class="activity-text">获得新手奖励：1000金币</span>
+            <span class="activity-text">获得新手奖励：{{ userProfile.tokens || 1000 }}代币</span>
           </div>
           <div class="activity-item">
             <span class="activity-time">2分钟前</span>
@@ -129,19 +121,16 @@
       </div>
     </div>
 
-    <!-- 底部导航 -->
-    <div class="bottom-nav">
-      <button class="nav-btn" @click="goHome">
-        🏠 首页
+    <!-- 底部按钮 -->
+    <div class="bottom-buttons">
+      <button class="bottom-btn logout-btn" @click="logout">
+        🚪 退出登录
       </button>
-      <button class="nav-btn active" @click="goGame">
-        🎮 游戏
+      <button class="bottom-btn profile-btn" @click="goProfile">
+        👤 个人资料
       </button>
-      <button class="nav-btn" @click="goProfile">
-        👤 个人
-      </button>
-      <button class="nav-btn" @click="goSettings">
-        ⚙️ 设置
+      <button class="bottom-btn home-btn" @click="goHome">
+        🏠 返回首页
       </button>
     </div>
   </div>
@@ -150,37 +139,57 @@
 <script>
 import { useWalletStore } from '../stores/wallet'
 import { useRouter } from 'vue-router'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import apiService from '../services/ApiService.js'
 
 export default {
   name: 'GameMain',
   setup() {
     const walletStore = useWalletStore()
     const router = useRouter()
+    const loading = ref(true)
+    const userProfile = ref({})
 
-    // 页面加载时自动检查登录状态
+    // 页面加载时自动获取用户数据
     onMounted(async () => {
       try {
-        // 检查后端session状态并自动恢复登录状态
-        await walletStore.checkSessionStatus()
+        // 直接获取用户档案数据
+        await fetchUserProfile()
       } catch (error) {
-        console.error('检查登录状态失败:', error)
+        console.error('获取用户数据失败:', error)
+        // 如果获取用户数据失败，可能是未登录，跳转到登录页面
+        router.push('/login')
+      } finally {
+        loading.value = false
       }
     })
 
-    const getWalletTypeName = (type) => {
-      const types = {
-        'metamask': 'MetaMask 浏览器插件',
-        'mobile': 'MetaMask 移动应用',
-        'walletconnect': 'WalletConnect',
-        'manual': '手动连接'
+    const fetchUserProfile = async () => {
+      try {
+        const result = await apiService.callApi('GetUserProfile', {
+          RequestUUID: Date.now().toString()
+        })
+
+        if (result.success) {
+          userProfile.value = result.data
+        } else {
+          console.error('获取用户档案失败:', result.message)
+          throw new Error(result.message || '获取用户档案失败')
+        }
+      } catch (error) {
+        console.error('获取用户档案失败:', error)
+        throw error // 重新抛出错误，让onMounted处理
       }
-      return types[type] || type
+    }
+
+    const formatDate = (dateString) => {
+      if (!dateString) return '未知'
+      return new Date(dateString).toLocaleString('zh-CN')
     }
 
     const disconnectWallet = () => {
       walletStore.disconnect()
-      router.push('/game')
+      router.push('/')
     }
 
     // 游戏功能方法
@@ -205,7 +214,7 @@ export default {
     }
 
     const openSettings = () => {
-      alert('设置功能正在开发中...')
+      router.push('/profile')
     }
 
     // 导航方法
@@ -213,23 +222,35 @@ export default {
       router.push('/')
     }
 
-    const goGame = () => {
-      // 已经在游戏页面，可以显示提示或刷新页面
-      alert('您已经在游戏页面了！')
-    }
-
     const goProfile = () => {
       router.push('/profile')
     }
 
-    const goSettings = () => {
-      alert('设置功能正在开发中...')
+    const logout = async () => {
+      try {
+        // 调用后端清除session
+        await apiService.callApi('Logout', {
+          RequestUUID: Date.now().toString()
+        })
+        
+        // 清除前端钱包状态
+        walletStore.disconnect()
+        
+        // 跳转到首页
+        router.push('/')
+      } catch (error) {
+        console.error('退出登录失败:', error)
+        // 即使后端调用失败，也清除前端状态并跳转
+        walletStore.disconnect()
+        router.push('/')
+      }
     }
 
     return {
       walletStore,
-      getWalletTypeName,
-      disconnectWallet,
+      loading,
+      userProfile,
+      formatDate,
       startBattle,
       viewLeaderboard,
       openShop,
@@ -237,9 +258,8 @@ export default {
       openGuild,
       openSettings,
       goHome,
-      goGame,
       goProfile,
-      goSettings
+      logout
     }
   }
 }
@@ -247,77 +267,56 @@ export default {
 
 <style scoped>
 .game-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem;
-  padding-bottom: 80px;
 }
 
 .game-header {
   text-align: center;
   margin-bottom: 2rem;
-  color: white;
 }
 
 .game-header h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  color: #333;
 }
 
 .game-header p {
   font-size: 1.2rem;
-  opacity: 0.9;
+  color: #666;
 }
 
-.wallet-status-bar {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+.loading-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.loading-card {
+  text-align: center;
+  background: white;
+  padding: 3rem;
   border-radius: 15px;
-  padding: 1rem;
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: white;
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
 }
 
-.status-item .label {
-  font-weight: 600;
-}
-
-.status-item .value {
-  font-family: monospace;
-}
-
-.value.connected {
-  color: #4CAF50;
-}
-
-.value.disconnected {
-  color: #f44336;
-}
-
-.disconnect-btn {
-  background: rgba(244, 67, 54, 0.8);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.disconnect-btn:hover {
-  background: rgba(244, 67, 54, 1);
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .game-content {
@@ -328,20 +327,19 @@ export default {
 .player-card {
   background: white;
   border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1rem;
-  text-align: center;
+  padding: 1.5rem;
 }
 
 .card-header h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
 }
 
 .card-content {
@@ -352,7 +350,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0;
+  padding: 0.75rem 0;
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -362,17 +360,17 @@ export default {
 
 .info-row .label {
   font-weight: 600;
-  color: #333;
+  color: #666;
 }
 
 .info-row .value {
-  font-family: monospace;
-  color: #666;
+  font-weight: 500;
+  color: #333;
 }
 
 .game-features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
@@ -380,8 +378,8 @@ export default {
   background: white;
   border-radius: 15px;
   padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   text-align: center;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
 }
 
@@ -412,112 +410,136 @@ export default {
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
   font-weight: 600;
+  transition: all 0.3s ease;
 }
 
 .feature-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 .recent-activity {
   background: white;
   border-radius: 15px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .recent-activity h3 {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   color: #333;
 }
 
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .activity-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
+  padding: 1rem;
   background: #f8f9fa;
   border-radius: 8px;
 }
 
 .activity-time {
-  font-size: 0.8rem;
-  color: #999;
-  font-weight: 600;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
 }
 
 .activity-text {
   color: #333;
+  font-weight: 500;
 }
 
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+.bottom-buttons {
   background: white;
+  border-top: 1px solid #e0e0e0;
   display: flex;
-  justify-content: space-around;
-  padding: 1rem;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  justify-content: space-between;
+  padding: 1rem 1rem;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  margin-top: 2rem;
 }
 
-.nav-btn {
-  background: none;
+.bottom-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.75rem 1rem;
   cursor: pointer;
-  transition: all 0.3s ease;
   font-size: 0.9rem;
-  color: #666;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  min-width: 100px;
+  flex: 1;
+  margin: 0 0.5rem;
 }
 
-.nav-btn.active {
+.bottom-btn:first-child {
+  margin-left: 0;
+}
+
+.bottom-btn:last-child {
+  margin-right: 0;
+}
+
+.bottom-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.bottom-btn.home-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.bottom-btn.home-btn:hover {
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.bottom-btn.profile-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
 }
 
-.nav-btn:hover {
-  background: #f0f0f0;
-  color: #333;
+.bottom-btn.profile-btn:hover {
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
-.nav-btn.active:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+.bottom-btn.logout-btn {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.bottom-btn.logout-btn:hover {
+  box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
 }
 
 @media (max-width: 768px) {
-  .game-header h1 {
-    font-size: 2rem;
+  .game-main {
+    padding: 1rem;
   }
   
-  .wallet-status-bar {
-    flex-direction: column;
-    align-items: stretch;
+  .game-header h1 {
+    font-size: 2rem;
   }
   
   .game-features {
     grid-template-columns: 1fr;
   }
   
-  .bottom-nav {
-    padding: 0.75rem;
+  .bottom-buttons {
+    padding: 1rem;
   }
   
-  .nav-btn {
+  .bottom-btn {
     font-size: 0.8rem;
-    padding: 0.5rem;
+    padding: 0.75rem 1rem;
+    min-width: 100px;
   }
 }
 </style> 

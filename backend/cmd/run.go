@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"beast-royale-backend/internal/api"
 	"beast-royale-backend/internal/config"
 	"beast-royale-backend/internal/db"
 	"beast-royale-backend/internal/logger"
@@ -31,6 +32,9 @@ var runCmd = &cobra.Command{
 			fmt.Printf("init logger failed: %+v\n", err)
 			os.Exit(-1)
 		}
+
+		// 确保API包被初始化（调用init函数）
+		_ = api.GetAllAction()
 
 		err = db.Init()
 		if err != nil {

@@ -5,9 +5,9 @@
       <p class="hero-subtitle">一个基于区块链的史诗级游戏体验</p>
       
       <div class="hero-actions">
-        <router-link to="/game" class="btn btn-primary">
-          登录
-        </router-link>
+        <button class="btn btn-primary" @click="enterGame">
+          进入游戏
+        </button>
         <router-link 
           v-if="isDevMode" 
           to="/metamask-test" 
@@ -51,17 +51,41 @@
 
 <script>
 import config from '../config/index.js'
+import { useWalletStore } from '@/stores/wallet'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'Home',
-  computed: {
-    isDevMode() {
-      return config.app.isDevMode
+  setup() {
+    const walletStore = useWalletStore()
+    const router = useRouter()
+
+    const checkAndNavigateToGame = async () => {
+      try {
+        
+        // 检查是否有有效的session
+        const hasSession = await walletStore.checkSessionStatus()
+        
+        if (hasSession) {
+          // 有session，直接跳转到游戏主页
+          router.push('/game-main')
+        } else {
+          // 没有session，跳转到登录验证页面
+          router.push('/login')
+        }
+      } catch (error) {
+        console.error('检查session状态失败:', error)
+        // 出错时跳转到登录页面
+        router.push('/login')
+      }
     }
-  },
-  methods: {
-    learnMore() {
-      alert('更多功能正在开发中...')
+
+    return {
+      isDevMode: config.app.isDevMode,
+      enterGame: checkAndNavigateToGame,
+      learnMore() {
+        alert('更多功能正在开发中...')
+      }
     }
   }
 }
@@ -70,6 +94,7 @@ export default {
 <style scoped>
 .home {
   text-align: center;
+  padding: 2rem;
 }
 
 .hero {
@@ -170,6 +195,10 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .home {
+    padding: 1rem;
+  }
+  
   .hero-title {
     font-size: 2rem;
   }

@@ -42,6 +42,7 @@ type UpdateUserProfileResponse struct {
 	CreatedAt          string `json:"created_at"`
 	UpdatedAt          string `json:"updated_at"`
 	LastUsernameUpdate string `json:"last_username_update"`
+	UsernameUpdated    bool   `json:"username_updated"` // 标识用户名是否更新
 }
 
 // UpdateUserProfileTask 更新用户档案任务
@@ -121,7 +122,13 @@ func (task *UpdateUserProfileTask) Run(c *gin.Context) (Response, error) {
 	}
 
 	// 检查用户名修改权限
+	usernameUpdated := false
+	attemptingUsernameUpdate := false // 后端自动判断是否尝试修改用户名
+
+	// 判断用户是否尝试修改用户名
 	if task.Request.Username != "" && task.Request.Username != profile.Username {
+		attemptingUsernameUpdate = true
+
 		// 检查用户名是否已被其他用户使用
 		existingProfile, err := db.GetUserProfileByUsername(task.Request.Username)
 		if err == nil && existingProfile != nil && existingProfile.Address != address {
@@ -131,18 +138,25 @@ func (task *UpdateUserProfileTask) Run(c *gin.Context) (Response, error) {
 		}
 
 		// 检查是否可以修改用户名（24小时内只能修改一次）
-		if !profile.LastUsernameUpdate.IsZero() {
-			timeSinceLastUpdate := time.Since(profile.LastUsernameUpdate)
+		if profile.LastUsernameUpdate != nil {
+			timeSinceLastUpdate := time.Since(*profile.LastUsernameUpdate)
 			if timeSinceLastUpdate < 24*time.Hour {
-				task.Response.SetRetCode(400)
-				task.Response.SetMessage("Username can only be changed once every 24 hours")
-				return task.Response, nil
+				// 用户名不能更新，但继续更新其他字段
+				logger.Info("用户名 %s 在24小时内不能更新，跳过用户名字段", address)
+			} else {
+				// 可以更新用户名
+				profile.Username = task.Request.Username
+				now := time.Now()
+				profile.LastUsernameUpdate = &now
+				usernameUpdated = true
 			}
+		} else {
+			// 从未更新过用户名，可以更新
+			profile.Username = task.Request.Username
+			now := time.Now()
+			profile.LastUsernameUpdate = &now
+			usernameUpdated = true
 		}
-
-		// 更新用户名和LastUsernameUpdate
-		profile.Username = task.Request.Username
-		profile.LastUsernameUpdate = time.Now()
 	}
 
 	// 更新其他字段
@@ -189,12 +203,27 @@ func (task *UpdateUserProfileTask) Run(c *gin.Context) (Response, error) {
 	task.Response.UpdatedAt = profile.UpdatedAt.Format("2006-01-02 15:04:05")
 
 	// 处理LastUsernameUpdate字段
-	if profile.LastUsernameUpdate.IsZero() {
+	if profile.LastUsernameUpdate == nil {
 		task.Response.LastUsernameUpdate = ""
 	} else {
 		task.Response.LastUsernameUpdate = profile.LastUsernameUpdate.Format("2006-01-02 15:04:05")
 	}
 
-	task.Response.SetMessage("User profile updated successfully")
+	// 设置用户名更新状态
+	task.Response.UsernameUpdated = usernameUpdated
+
+	// 根据用户名是否更新设置不同的返回码和消息
+	if usernameUpdated {
+		task.Response.SetRetCode(0) // 完全成功：所有字段都更新成功
+		task.Response.SetMessage("User profile updated successfully")
+	} else if attemptingUsernameUpdate && !usernameUpdated {
+		// 部分成功：尝试更新用户名但被限制，其他字段更新成功
+		task.Response.SetRetCode(206) // 206 Partial Content - 部分成功
+		task.Response.SetMessage("User profile updated successfully")
+	} else {
+		// 完全成功：只更新了其他字段，没有尝试更新用户名
+		task.Response.SetRetCode(0) // 完全成功
+		task.Response.SetMessage("User profile updated successfully")
+	}
 	return task.Response, nil
 }

@@ -127,7 +127,7 @@ func (task *GetUserProfileTask) Run(c *gin.Context) (Response, error) {
 	task.Response.UpdatedAt = profile.UpdatedAt.Format("2006-01-02 15:04:05")
 
 	// 处理LastUsernameUpdate字段
-	if profile.LastUsernameUpdate.IsZero() {
+	if profile.LastUsernameUpdate == nil || profile.LastUsernameUpdate.IsZero() {
 		task.Response.LastUsernameUpdate = ""
 	} else {
 		task.Response.LastUsernameUpdate = profile.LastUsernameUpdate.Format("2006-01-02 15:04:05")

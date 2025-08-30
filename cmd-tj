@@ -1,0 +1,8 @@
+# 重启前端（保持后端运行）
+cd frontend && ./stop.sh && ./start.sh
+
+# 重启后端（保持前端运行）
+cd backend && ./stop.sh && ./start.sh
+
+# 重启ngrok（保持前后端运行）
+./stop-ngrok.sh && ./start-ngrok.sh

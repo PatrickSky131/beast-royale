@@ -46,12 +46,14 @@ type RedisConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	DBName   string `yaml:"dbname"`
-	SSLMode  string `yaml:"sslmode"`
+	Host      string `yaml:"host"`
+	Port      int    `yaml:"port"`
+	User      string `yaml:"user"`
+	Password  string `yaml:"password"`
+	DBName    string `yaml:"dbname"`
+	Charset   string `yaml:"charset"`
+	ParseTime bool   `yaml:"parse_time"`
+	Loc       string `yaml:"loc"`
 }
 
 // LoggingConfig 日志配置
@@ -150,7 +152,7 @@ func (c *Config) GetServerAddr() string {
 
 // GetDatabaseDSN 获取数据库连接字符串
 func (c *Config) GetDatabaseDSN() string {
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		c.Database.Host, c.Database.Port, c.Database.User, c.Database.Password,
-		c.Database.DBName, c.Database.SSLMode)
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s",
+		c.Database.User, c.Database.Password, c.Database.Host, c.Database.Port,
+		c.Database.DBName, c.Database.Charset, c.Database.ParseTime, c.Database.Loc)
 }

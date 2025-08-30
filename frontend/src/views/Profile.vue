@@ -9,11 +9,6 @@
         <p>加载中...</p>
       </div>
 
-      <!-- 错误信息 -->
-      <div v-if="error" class="error-message">
-        {{ error }}
-      </div>
-
       <!-- 个人档案表单 -->
       <div v-if="!loading && profile" class="profile-form">
         <form @submit.prevent="saveProfile">
@@ -42,7 +37,7 @@
                 :disabled="!canUpdateUsername"
               />
               <small v-if="!canUpdateUsername" class="warning">
-                用户名24小时内只能修改一次
+                用户名24小时内只能修改一次，请{{ usernameUpdateRemainingTime }}后再试
               </small>
             </div>
 
@@ -147,6 +142,13 @@
           <div class="form-actions">
             <button 
               type="button" 
+              @click="goToGame" 
+              class="btn btn-game"
+            >
+              🎮 返回游戏大厅
+            </button>
+            <button 
+              type="button" 
               @click="resetForm" 
               class="btn btn-secondary"
               :disabled="saving"
@@ -164,6 +166,14 @@
         </form>
       </div>
     </div>
+
+    <!-- 底部提示 -->
+    <div v-if="success" class="toast toast-success">
+      {{ success }}
+    </div>
+    <div v-if="error" class="toast toast-error">
+      {{ error }}
+    </div>
   </div>
 </template>
 
@@ -171,15 +181,19 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useWalletStore } from '../stores/wallet.js'
 import apiService from '../services/ApiService.js'
+import { useRouter } from 'vue-router'
+import config from '../config/index.js'
 
 export default {
   name: 'Profile',
   setup() {
     const walletStore = useWalletStore()
+    const router = useRouter()
     
     const loading = ref(false)
     const saving = ref(false)
     const error = ref('')
+    const success = ref('')
     const profile = ref(null)
     
     const formData = reactive({
@@ -196,24 +210,50 @@ export default {
     const canUpdateUsername = computed(() => {
       if (!profile.value) return false
       return !profile.value.lastUsernameUpdate || 
-             new Date() - new Date(profile.value.lastUsernameUpdate) > 24 * 60 * 60 * 1000
+             new Date() - new Date(profile.value.lastUsernameUpdate) > config.app.usernameUpdateInterval
+    })
+
+    const usernameUpdateRemainingTime = computed(() => {
+      if (!profile.value || !profile.value.lastUsernameUpdate) return null
+      
+      const lastUpdate = new Date(profile.value.lastUsernameUpdate)
+      const now = new Date()
+      const timeDiff = config.app.usernameUpdateInterval - (now - lastUpdate)
+      
+      if (timeDiff <= 0) return null
+      
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60))
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60))
+      
+      if (hours > 0) {
+        return `${hours}小时${minutes}分钟`
+      } else {
+        return `${minutes}分钟`
+      }
     })
 
     const hasChanges = computed(() => {
       if (!profile.value) return false
-      return formData.username !== profile.value.username ||
-             formData.bio !== profile.value.bio ||
+      
+      // 检查用户名变化（只有在可以更新时才考虑）
+      const usernameChanged = canUpdateUsername.value && formData.username !== profile.value.username
+      
+      // 检查其他字段变化
+      const otherFieldsChanged = formData.bio !== profile.value.bio ||
              formData.avatarURL !== profile.value.avatarURL ||
              formData.discordUsername !== profile.value.discordUsername ||
              formData.discordURL !== profile.value.discordURL ||
              formData.xUsername !== profile.value.xUsername ||
              formData.xURL !== profile.value.xURL
+      
+      return usernameChanged || otherFieldsChanged
     })
 
     // 方法
     const loadProfile = async () => {
       loading.value = true
       error.value = ''
+      success.value = ''
       
       try {
         const result = await apiService.getUserProfile()
@@ -223,14 +263,21 @@ export default {
         } else {
           // 检查是否是认证错误
           if (result.retCode === 401) {
-            error.value = '请先连接钱包'
+            throw new Error('请先连接钱包')
           } else {
-            error.value = result.error || '获取个人档案失败'
+            throw new Error('获取个人档案失败，请稍后重试')
           }
         }
       } catch (err) {
-        error.value = '网络错误，请稍后重试'
         console.error('加载个人档案失败:', err)
+        // 根据错误类型显示不同的用户友好信息
+        if (err.message.includes('网络') || err.message.includes('连接')) {
+          throw new Error('网络连接失败，请检查网络后重试')
+        } else if (err.message.includes('钱包')) {
+          throw new Error('请先连接钱包')
+        } else {
+          throw new Error('获取个人档案失败，请稍后重试')
+        }
       } finally {
         loading.value = false
       }
@@ -251,11 +298,12 @@ export default {
     const saveProfile = async () => {
       saving.value = true
       error.value = ''
+      success.value = ''
       
       try {
         const updateData = {}
         
-        // 只发送有变化的字段
+        // 发送所有有变化的字段，让后端处理用户名更新限制
         if (formData.username !== profile.value.username) {
           updateData.Username = formData.username
         }
@@ -278,16 +326,93 @@ export default {
           updateData.XURL = formData.xURL
         }
 
+        // 如果没有需要更新的字段，直接返回
+        if (Object.keys(updateData).length === 0) {
+          success.value = '没有需要更新的内容'
+          setTimeout(() => {
+            success.value = ''
+            // 刷新页面
+            window.location.reload()
+          }, 2000)
+          return
+        }
+
+        console.log('发送更新数据:', updateData) // 添加调试信息
         const result = await apiService.updateUserProfile(updateData)
+        console.log('API响应:', result) // 添加调试信息
+        
         if (result.success) {
           profile.value = result.data
-          alert('个人档案更新成功！')
+          // 根据后端返回码显示不同的成功信息
+          if (result.retCode === 206) {
+            // 部分成功：用户名未更新，其他字段更新成功
+            success.value = '个人档案更新成功！（用户名未更新，仍在限制期内）'
+          } else if (result.retCode === 0) {
+            // 完全成功
+            success.value = '个人档案更新成功！'
+          } else {
+            // 其他成功情况
+            success.value = '个人档案更新成功！'
+          }
+          // 2秒后自动清除成功信息并刷新页面
+          setTimeout(() => {
+            success.value = ''
+            // 刷新页面
+            window.location.reload()
+          }, 2000)
         } else {
-          error.value = result.error || '更新个人档案失败'
+          console.log('API返回错误:', result) // 添加调试信息
+          // 根据返回码显示不同的用户友好信息
+          if (result.retCode === 401) {
+            error.value = '请先连接钱包'
+          } else if (result.retCode === 400) {
+            // 根据具体错误类型显示不同信息
+            if (result.message && result.message.includes('Username already taken')) {
+              error.value = '用户名已被使用，请选择其他用户名'
+            } else if (result.message && result.message.includes('24 hours')) {
+              error.value = '用户名24小时内只能修改一次'
+            } else {
+              error.value = '请求参数错误，请检查输入'
+            }
+          } else if (result.retCode === 500) {
+            error.value = '服务器错误，请稍后重试'
+          } else {
+            error.value = '更新失败，请稍后重试'
+          }
+          // 2秒后自动清除错误信息并刷新页面
+          setTimeout(() => {
+            error.value = ''
+            // 刷新页面
+            window.location.reload()
+          }, 2000)
         }
       } catch (err) {
-        error.value = '网络错误，请稍后重试'
         console.error('更新个人档案失败:', err)
+        console.log('错误详情:', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name
+        })
+        
+        // 根据错误类型显示不同的用户友好信息
+        if (err.message && err.message.includes('网络')) {
+          error.value = '网络连接失败，请检查网络后重试'
+        } else if (err.message && err.message.includes('连接')) {
+          error.value = '网络连接失败，请检查网络后重试'
+        } else if (err.message && err.message.includes('用户名')) {
+          error.value = '用户名更新失败，请稍后重试'
+        } else if (err.message) {
+          // 使用错误的具体信息
+          error.value = err.message
+        } else {
+          error.value = '更新失败，请稍后重试'
+        }
+        // 2秒后自动清除错误信息并刷新页面
+        setTimeout(() => {
+          error.value = ''
+          // 刷新页面
+          window.location.reload()
+        }, 2000)
       } finally {
         saving.value = false
       }
@@ -298,24 +423,22 @@ export default {
       return new Date(dateStr).toLocaleString('zh-CN')
     }
 
+    const goToGame = () => {
+      router.push('/game-main')
+    }
+
     // 生命周期
     onMounted(async () => {
       loading.value = true
       error.value = ''
+      success.value = ''
       
       try {
-        // 检查后端session状态并自动恢复登录状态
-        const isLoggedIn = await walletStore.checkSessionStatus()
-        if (isLoggedIn) {
-          // 已登录，加载用户档案
-          await loadProfile()
-        } else {
-          // 未登录，提示连接钱包
-          error.value = '请先连接钱包'
-        }
+        // 直接加载用户档案数据
+        await loadProfile()
       } catch (err) {
-        error.value = '请先连接钱包'
-        console.error('检测登录状态失败:', err)
+        error.value = err.message || '获取用户数据失败，请重新登录'
+        console.error('获取用户数据失败:', err)
       } finally {
         loading.value = false
       }
@@ -325,14 +448,17 @@ export default {
       loading,
       saving,
       error,
+      success,
       profile,
       formData,
       canUpdateUsername,
+      usernameUpdateRemainingTime,
       hasChanges,
       loadProfile,
       resetForm,
       saveProfile,
-      formatDate
+      formatDate,
+      goToGame
     }
   }
 }
@@ -378,16 +504,6 @@ h1 {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.error-message {
-  background: rgba(255, 0, 0, 0.1);
-  border: 1px solid #ff4444;
-  color: #ff4444;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  text-align: center;
 }
 
 .profile-form {
@@ -556,6 +672,61 @@ h1 {
   background: #5a6268;
 }
 
+.btn-game {
+  background: #28a745;
+  color: white;
+}
+
+.btn-game:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-2px);
+}
+
+/* Toast提示样式 */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes slideUpMobile {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 0 0.5rem;
@@ -572,6 +743,15 @@ h1 {
   .stats-grid,
   .info-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .toast {
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    text-align: center;
+    animation: slideUpMobile 0.3s ease-out;
   }
 }
 </style> 

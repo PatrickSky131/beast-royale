@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"beast-royale-backend/internal/config"
 	"beast-royale-backend/internal/db"
 
 	"github.com/spf13/cobra"
@@ -14,7 +15,17 @@ var dbMigrateCmd = &cobra.Command{
 	Use:   "db-migrate",
 	Short: "create tables in the target db",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := db.Init()
+		// 加载配置文件
+		if configPath == "" {
+			configPath = "config.yaml"
+		}
+		err := config.InitConfig(configPath)
+		if err != nil {
+			fmt.Printf("load config failed: %+v\n", err)
+			os.Exit(-1)
+		}
+
+		err = db.Init()
 		if err != nil {
 			fmt.Printf("init db failed: %+v\n", err)
 			os.Exit(-1)
@@ -30,6 +41,7 @@ var dbMigrateCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(dbMigrateCmd)
+	dbMigrateCmd.Flags().StringVarP(&configPath, "config", "c", "", "config file path")
 }
 
 func migrate() error {

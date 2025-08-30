@@ -244,7 +244,7 @@ export default {
         
         // 4. 验证签名
         emit('log', '步骤3: 验证签名...', 'info')
-        const verifyResult = await apiService.verifySignature(address, signatureResult.signature, message)
+        const verifyResult = await apiService.verifySignature(address, signatureResult.signature, nonce)
         
         if (verifyResult.success) {
           emit('log', `验证成功，token: ${verifyResult.data.token}`, 'success')

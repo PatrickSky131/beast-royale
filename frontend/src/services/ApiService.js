@@ -148,17 +148,19 @@ class ApiService {
       const response = await this.apiClient.post('/api', requestData)
       
       // 适配新的Action-based API响应格式
-      if (response.data.RetCode === 0) {
+      if (response.data.RetCode === 0 || response.data.RetCode === 206) {
         return {
           success: true,
           data: response.data,
           message: response.data.Message,
+          retCode: response.data.RetCode, // 添加返回码字段
         }
       } else {
         return {
           success: false,
           error: response.data.Error || response.data.Message,
           message: response.data.Message,
+          retCode: response.data.RetCode, // 添加返回码字段
         }
       }
     } catch (error) {
@@ -214,6 +216,22 @@ class ApiService {
   // 获取用户档案
   async getUserProfile() {
     return await this.callApi('GetUserProfile', {})
+  }
+
+  // 检查session状态
+  async checkSession() {
+    try {
+      // 使用GetUserProfile来检查session状态
+      // 如果session有效，会返回用户数据；如果无效，会返回401错误
+      const result = await this.callApi('GetUserProfile', {})
+      return result
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: 'Session检查失败'
+      }
+    }
   }
 
   // 更新用户档案

@@ -17,11 +17,13 @@ redis:
 # 数据库配置
 database:
   host: "localhost"
-  port: 5432
-  user: "postgres"
-  password: "password"
+  port: 3306
+  user: "root"
+  password: ""
   dbname: "beast_royale"
-  sslmode: "disable"
+  charset: "utf8mb4"
+  parse_time: true
+  loc: "Local"
 
 # 日志配置
 logging:
