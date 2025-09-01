@@ -126,4 +126,5 @@ cookies.txt
 */cookies.txt
 
 # Config files
-backend/config.yaml
+*/config.yaml
+config.yaml
