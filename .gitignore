@@ -124,3 +124,6 @@ typings/
 # Cookie files
 cookies.txt
 */cookies.txt
+
+# Config files
+backend/config.yaml
