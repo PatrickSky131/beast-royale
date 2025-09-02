@@ -124,3 +124,7 @@ typings/
 # Cookie files
 cookies.txt
 */cookies.txt
+
+# Config files
+*/config.yaml
+config.yaml
