@@ -8,7 +8,7 @@ export const walletConnectConfig = {
   // 2. 创建账户并登录
   // 3. 创建新项目
   // 4. 复制Project ID到下面
-  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '2ef4bc0023aa46a876ae676fd622b125',
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '8f10aef40e50f0e4981c5c1b928c212e',
   
   // 支持的区块链网络
   chains: [

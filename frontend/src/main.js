@@ -21,6 +21,30 @@ const initVConsole = () => {
 // 初始化vConsole
 initVConsole()
 
+// 添加全局错误处理，防止Vite连接问题导致页面崩溃
+window.addEventListener('error', (event) => {
+  console.error('全局错误:', event.error)
+  // 如果是Vite连接错误，不显示错误覆盖层
+  if (event.error && event.error.message && 
+      (event.error.message.includes('server connection lost') || 
+       event.error.message.includes('Polling for restart'))) {
+    console.log('检测到Vite连接问题，忽略错误')
+    event.preventDefault()
+  }
+})
+
+// 处理未捕获的Promise错误
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('未处理的Promise错误:', event.reason)
+  // 如果是Vite连接错误，忽略
+  if (event.reason && event.reason.message && 
+      (event.reason.message.includes('server connection lost') || 
+       event.reason.message.includes('Polling for restart'))) {
+    console.log('检测到Vite连接问题，忽略Promise错误')
+    event.preventDefault()
+  }
+})
+
 const app = createApp(App)
 
 app.use(createPinia())

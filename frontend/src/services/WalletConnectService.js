@@ -10,6 +10,7 @@ class WalletConnectService {
     this.isConnected = false
     this.account = null
     this.chainId = null
+    this.isConnecting = false  // 添加连接状态锁
     
     // 验证配置
     this.configValid = validateWalletConnectConfig()
@@ -117,14 +118,7 @@ class WalletConnectService {
 
     this.provider.on('disconnect', (disconnectInfo) => {
       console.log('WalletConnect断开连接:', disconnectInfo)
-      this.isConnected = false
-      this.account = null
-      this.chainId = null
-      if (walletStore) {
-        walletStore.isConnected = false
-        walletStore.address = null
-        walletStore.chainId = null
-      }
+      this.handleDisconnection(disconnectInfo)
     })
 
     this.provider.on('accountsChanged', (accounts) => {
@@ -142,6 +136,157 @@ class WalletConnectService {
         walletStore.chainId = chainId
       }
     })
+
+    // 添加会话过期监听
+    this.provider.on('session_expire', (sessionExpireInfo) => {
+      console.log('WalletConnect会话过期:', sessionExpireInfo)
+      this.handleSessionExpire(sessionExpireInfo)
+    })
+
+    // 设置自动恢复机制
+    this.setupAutoRecovery()
+  }
+
+  // 处理断开连接
+  handleDisconnection(disconnectInfo) {
+    console.log('处理WalletConnect断开连接:', disconnectInfo)
+    
+    // 清理状态
+    this.isConnected = false
+    this.account = null
+    this.chainId = null
+    if (walletStore) {
+      walletStore.isConnected = false
+      walletStore.address = null
+      walletStore.chainId = null
+    }
+    
+    // 尝试自动恢复连接
+    this.attemptAutoRecovery()
+  }
+
+  // 处理会话过期
+  handleSessionExpire(sessionExpireInfo) {
+    console.log('处理WalletConnect会话过期:', sessionExpireInfo)
+    
+    // 清理状态
+    this.handleDisconnection(sessionExpireInfo)
+  }
+
+  // 设置自动恢复机制
+  setupAutoRecovery() {
+    // 监听页面可见性变化
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        console.log('页面重新可见，检查连接状态')
+        this.checkAndRecoverConnection()
+      }
+    })
+
+    // 监听网络状态变化
+    window.addEventListener('online', () => {
+      console.log('网络已连接，尝试恢复WalletConnect连接')
+      this.checkAndRecoverConnection()
+    })
+
+    // 定期检查连接状态
+    this.recoveryInterval = setInterval(() => {
+      this.checkAndRecoverConnection()
+    }, 10000) // 每10秒检查一次
+  }
+
+  // 检查并恢复连接
+  async checkAndRecoverConnection() {
+    if (this.isConnecting) {
+      return // 如果正在连接中，跳过
+    }
+
+    try {
+      // 检查是否有现有连接
+      if (this.provider && this.provider.connected) {
+        console.log('WalletConnect连接正常')
+        return
+      }
+
+      // 尝试恢复连接
+      console.log('尝试自动恢复WalletConnect连接...')
+      await this.attemptAutoRecovery()
+    } catch (error) {
+      console.log('自动恢复连接失败:', error)
+    }
+  }
+
+  // 尝试自动恢复连接
+  async attemptAutoRecovery() {
+    if (this.isConnecting) {
+      return
+    }
+
+    try {
+      console.log('开始自动恢复WalletConnect连接...')
+      
+      // 检查配置
+      if (!this.configValid) {
+        console.log('配置无效，无法自动恢复')
+        return
+      }
+
+      // 动态加载WalletConnect
+      const { EthereumProvider } = await this.loadWalletConnect()
+
+      // 尝试初始化provider（这会自动恢复现有会话）
+      this.provider = await EthereumProvider.init({
+        projectId: walletConnectConfig.projectId,
+        chains: walletConnectConfig.chains,
+        showQrModal: false, // 不显示二维码，只是尝试恢复
+        metadata: walletConnectConfig.metadata
+      })
+
+      // 设置事件监听器
+      this.setupEventListeners()
+
+      // 检查是否有现有连接
+      if (this.provider.connected && this.provider.accounts && this.provider.accounts.length > 0) {
+        console.log('自动恢复WalletConnect连接成功')
+        
+        this.account = this.provider.accounts[0]
+        this.chainId = this.provider.chainId
+        this.isConnected = true
+        this.ethersProvider = new ethers.BrowserProvider(this.provider)
+        
+        // 更新store
+        if (walletStore) {
+          walletStore.isConnected = true
+          walletStore.address = this.account
+          walletStore.chainId = this.chainId
+        }
+        
+        console.log('WalletConnect连接已自动恢复:', {
+          account: this.account,
+          chainId: this.chainId,
+          isConnected: this.isConnected
+        })
+      } else {
+        console.log('没有可恢复的WalletConnect会话')
+        // 清理无效的provider
+        if (this.provider) {
+          try {
+            await this.provider.disconnect()
+          } catch (e) {
+            // 忽略断开连接的错误
+          }
+          this.provider = null
+        }
+      }
+    } catch (error) {
+      console.log('自动恢复WalletConnect连接失败:', error)
+      // 清理状态
+      this.provider = null
+      this.ethersProvider = null
+      this.isConnected = false
+      this.account = null
+      this.chainId = null
+    }
   }
 
   // 检测是否在外部浏览器中
@@ -177,18 +322,30 @@ class WalletConnectService {
     try {
       console.log('开始WalletConnect连接...')
 
+      // 检查是否正在连接中
+      if (this.isConnecting) {
+        console.log('WalletConnect正在连接中，请等待...')
+        throw new Error('WalletConnect正在连接中，请等待当前连接完成')
+      }
+
+      // 设置连接锁
+      this.isConnecting = true
+
       // 检查配置
       if (!this.configValid) {
+        this.isConnecting = false
         throw new Error('WalletConnect配置无效，请检查控制台日志')
       }
 
       if (walletConnectConfig.projectId === 'YOUR_PROJECT_ID_HERE') {
+        this.isConnecting = false
         throw new Error('请先配置WalletConnect Project ID。访问 https://cloud.walletconnect.com 获取')
       }
 
       // 如果已经有provider且已连接，直接返回
       if (this.provider && this.provider.connected && this.account) {
         console.log('WalletConnect已连接，直接返回现有连接')
+        this.isConnecting = false
         return {
           account: this.account,
           chainId: this.chainId,
@@ -197,19 +354,22 @@ class WalletConnectService {
         }
       }
 
-      // 如果有provider但未连接，先清理
-      if (this.provider && !this.provider.connected) {
-        console.log('清理未连接的provider...')
+      // 如果有provider（无论是否连接），先完全清理
+      if (this.provider) {
+        console.log('清理现有provider...')
         try {
           await this.provider.disconnect()
         } catch (e) {
-          // 忽略断开连接的错误
+          console.log('断开连接时出错（可忽略）:', e)
         }
         this.provider = null
         this.ethersProvider = null
         this.isConnected = false
         this.account = null
         this.chainId = null
+        
+        // 等待一小段时间确保清理完成
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
 
       // 动态加载WalletConnect
@@ -243,6 +403,9 @@ class WalletConnectService {
       const network = await this.ethersProvider.getNetwork()
       this.chainId = network.chainId
 
+      // 释放连接锁
+      this.isConnecting = false
+
       return {
         account: this.account,
         chainId: this.chainId,
@@ -261,6 +424,7 @@ class WalletConnectService {
       this.isConnected = false
       this.account = null
       this.chainId = null
+      this.isConnecting = false  // 释放连接锁
       
       // 安全地检查错误消息
       let errorMessage = 'Unknown error'
@@ -450,6 +614,13 @@ class WalletConnectService {
       this.isConnected = false
       this.account = null
       this.chainId = null
+      this.isConnecting = false  // 释放连接锁
+      
+      // 清理恢复间隔
+      if (this.recoveryInterval) {
+        clearInterval(this.recoveryInterval)
+        this.recoveryInterval = null
+      }
       
       if (config.app.isDevMode) {
         console.log('WalletConnect已断开连接')

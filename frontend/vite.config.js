@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [vue()],
   resolve: {
     alias: {
@@ -17,8 +17,15 @@ export default defineConfig({
       '127.0.0.1',
       '192.168.184.163',
       '.ngrok-free.app', // 允许所有ngrok域名
-      'all'
+      '.xusenqi.site',
     ],
+    // 根据环境配置HMR
+    hmr: mode === 'development' ? {
+      port: 5173,
+      host: 'localhost',
+      // 减少重连频率，避免移动端问题
+      overlay: false
+    } : false,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -36,4 +43,4 @@ export default defineConfig({
       },
     },
   },
-}) 
+}))
