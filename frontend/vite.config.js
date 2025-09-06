@@ -28,17 +28,17 @@ export default defineConfig(({ mode }) => ({
     } : false,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:7000',
         changeOrigin: true,
         secure: false,
       },
       '/api/v1': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:7000',
         changeOrigin: true,
         secure: false,
       },
       '/health': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:7000',
         changeOrigin: true,
       },
     },
