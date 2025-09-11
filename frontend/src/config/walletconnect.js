@@ -9,6 +9,9 @@ export const walletConnectConfig = {
   // 3. 创建新项目
   // 4. 复制Project ID到下面
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '8f10aef40e50f0e4981c5c1b928c212e',
+  //relayUrl: import.meta.env.RELAY_URL,
+  relayUrl: 'wss://relay.walletconnect.org',
+  //relayUrl: 'wss://relayer.elementra.xyz',
   
   // 支持的区块链网络
   chains: [

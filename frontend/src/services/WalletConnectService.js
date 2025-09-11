@@ -34,7 +34,8 @@ class WalletConnectService {
         projectId: walletConnectConfig.projectId,
         chains: walletConnectConfig.chains,
         showQrModal: false, // 不显示二维码，只是检查现有连接
-        metadata: walletConnectConfig.metadata
+        metadata: walletConnectConfig.metadata,
+        relayUrl: walletConnectConfig.relayUrl,
       })
       
       if (config.app.isDevMode) {
@@ -239,7 +240,8 @@ class WalletConnectService {
         projectId: walletConnectConfig.projectId,
         chains: walletConnectConfig.chains,
         showQrModal: false, // 不显示二维码，只是尝试恢复
-        metadata: walletConnectConfig.metadata
+        metadata: walletConnectConfig.metadata,
+        relayUrl: walletConnectConfig.relayUrl,
       })
 
       // 设置事件监听器
@@ -380,7 +382,8 @@ class WalletConnectService {
         projectId: walletConnectConfig.projectId,
         chains: walletConnectConfig.chains,
         showQrModal: true,
-        metadata: walletConnectConfig.metadata
+        metadata: walletConnectConfig.metadata,
+        relayUrl: walletConnectConfig.relayUrl,
       })
 
       // 设置事件监听器

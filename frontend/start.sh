@@ -9,6 +9,8 @@ if lsof -i :5173 >/dev/null 2>&1; then
     sleep 2
 fi
 
+nvm use 20
+
 # 启动前端服务
 cd "$(dirname "$0")"
 if [ -f "package.json" ]; then
