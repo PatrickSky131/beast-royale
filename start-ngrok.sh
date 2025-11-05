@@ -39,7 +39,7 @@ if [ -n "$NGROK_URL" ]; then
     # 更新前端环境变量（总是创建或更新）
     echo "更新前端环境变量..."
     cd frontend
-    echo "VITE_WALLETCONNECT_PROJECT_ID=2ef4bc0023aa46a876ae676fd622b125" > .env
+    echo "VITE_WALLETCONNECT_PROJECT_ID=8f10aef40e50f0e4981c5c1b928c212e" > .env
     echo "VITE_APP_URL=$NGROK_URL" >> .env
     cd ..
     echo "✅ 前端环境变量已更新"

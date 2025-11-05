@@ -48,7 +48,7 @@ cors:
     - "http://localhost:5173"
     - "http://localhost:5174"
     - "https://d925-107-150-120-125.ngrok-free.app"  # ngrok域名
-    - "http://152.32.170.59:5173"      # 云主机前端
+    - "http://walletconnect.xusenqi.site"      # 云主机前端
   allowed_methods:
     - "GET"
     - "POST"
